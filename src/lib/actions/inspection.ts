@@ -33,7 +33,9 @@ export async function getBlocks(shipId: string) {
   return data.map(b => ({
     id: b.id,
     code: b.code,
-    vendor: b.vendors as { id: string; name: string; vendor_type: string | null } | null,
+    vendor: Array.isArray(b.vendors)
+      ? ((b.vendors[0] as { id: string; name: string; vendor_type: string | null }) ?? null)
+      : ((b.vendors as { id: string; name: string; vendor_type: string | null } | null) ?? null),
   }))
 }
 
