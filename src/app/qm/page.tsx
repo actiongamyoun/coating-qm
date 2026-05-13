@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import QmDashboard from './QmDashboard'
 
 export default function QmHome() {
   const router = useRouter()
-  const [name, setName] = useState('')
+  const [user, setUser] = useState<{name: string} | null>(null)
 
   useEffect(() => {
     const id = localStorage.getItem('coating_qm_user_id')
@@ -14,7 +15,9 @@ export default function QmHome() {
       router.replace('/signup')
       return
     }
-    setName(localStorage.getItem('coating_qm_user_name') || '')
+    setUser({
+      name: localStorage.getItem('coating_qm_user_name') || '',
+    })
   }, [router])
 
   function handleLogout() {
@@ -23,25 +26,6 @@ export default function QmHome() {
     router.replace('/signup')
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="bg-gray-900 text-white p-4 flex items-center gap-3 shadow">
-        <span className="material-icons text-3xl">verified_user</span>
-        <div className="flex-1">
-          <div className="text-xs opacity-85 font-bold">QM</div>
-          <div className="text-base font-black">{name}</div>
-        </div>
-        <button onClick={handleLogout} className="bg-white/15 rounded-full w-9 h-9 flex items-center justify-center">
-          <span className="material-icons text-base">settings</span>
-        </button>
-      </div>
-
-      <div className="max-w-md mx-auto p-4 space-y-4">
-        <div className="bg-primary-light text-primary-dark p-4 rounded-xl text-sm font-bold">
-          <span className="material-icons align-middle mr-1">tips_and_updates</span>
-          QM 대시보드는 추후 추가될 예정입니다.
-        </div>
-      </div>
-    </div>
-  )
+  if (!user) return null
+  return <QmDashboard userName={user.name} onLogout={handleLogout} />
 }
