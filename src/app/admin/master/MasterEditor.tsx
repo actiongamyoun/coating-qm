@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { MASTER_COLUMNS, emptyRow, type MasterRow } from '@/types/master'
 import { saveMasterData } from '@/lib/actions/master'
+import { adminLogout } from '@/lib/actions/admin-auth'
 
 export default function MasterEditor() {
   const [rows, setRows] = useState<MasterRow[]>(() =>
@@ -120,12 +121,24 @@ export default function MasterEditor() {
     }
   }
 
+  async function handleLogout() {
+    if (!confirm('관리자 로그아웃 하시겠습니까?')) return
+    await adminLogout()
+  }
+
   return (
     <div className="min-h-screen bg-[#ECEFF1]">
       <div className="sticky top-0 z-20 bg-admin text-white px-5 py-3 flex items-center gap-3 shadow-md">
         <span className="material-icons text-2xl">admin_panel_settings</span>
         <div className="flex-1 font-black text-base">마스터 데이터 입력</div>
         <span className="bg-white/20 px-2 py-1 rounded-full text-[11px] font-black">관리자 전용</span>
+        <button
+          onClick={handleLogout}
+          className="bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-full text-[12px] font-black flex items-center gap-1"
+          title="로그아웃"
+        >
+          <span className="material-icons text-base">logout</span>로그아웃
+        </button>
       </div>
 
       <div className="max-w-[1400px] mx-auto p-5">

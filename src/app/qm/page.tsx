@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 
 export default function QmHome() {
   const router = useRouter()
@@ -42,14 +41,6 @@ export default function QmHome() {
           <span className="material-icons align-middle mr-1">tips_and_updates</span>
           QM 대시보드는 추후 추가될 예정입니다.
         </div>
-
-        <Link
-          href="/admin/master"
-          className="block bg-white border-2 border-admin text-admin py-3 rounded-xl text-sm font-black text-center"
-        >
-          <span className="material-icons align-middle mr-1">admin_panel_settings</span>
-          마스터 데이터 입력 (관리자)
-        </Link>
       </div>
     </div>
   )

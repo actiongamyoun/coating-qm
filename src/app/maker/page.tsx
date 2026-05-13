@@ -58,14 +58,6 @@ export default function MakerHome() {
           <span className="material-icons align-middle mr-1">tips_and_updates</span>
           최근 기록 목록은 추후 추가될 예정입니다.
         </div>
-
-        <Link
-          href="/admin/master"
-          className="block bg-white border-2 border-admin text-admin py-3 rounded-xl text-sm font-black text-center"
-        >
-          <span className="material-icons align-middle mr-1">admin_panel_settings</span>
-          마스터 데이터 입력 (관리자)
-        </Link>
       </div>
     </div>
   )
