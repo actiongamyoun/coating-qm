@@ -4,9 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 
 /**
  * 검사 세션 목록 조회
- * - userId 지정 시: 해당 사용자가 기록한 세션만
- * - shipId 지정 시: 특정 호선의 모든 세션
- * - 둘 다 없으면: 전체
  */
 export async function getSessions(params: {
   userId?: string
@@ -56,14 +53,24 @@ export async function getSessions(params: {
   })
 }
 
+export type SessionPhoto = {
+  id: string
+  photo_type: string
+  file_url: string
+  public_id: string | null
+  width: number | null
+  height: number | null
+  bytes: number | null
+  is_required: boolean
+  caption: string | null
+}
+
 /**
- * 특정 세션의 상세 조회
- * 환경 + Batch + 표면측정 + DFT 측정 + 구역 + 마스터 사양까지 한 번에
+ * 특정 세션의 상세 조회 (사진 포함)
  */
 export async function getSessionDetail(sessionId: string) {
   const supabase = await createClient()
 
-  // 1. 세션 기본
   const { data: session, error: sessErr } = await supabase
     .from('inspection_sessions')
     .select(`
@@ -80,21 +87,18 @@ export async function getSessionDetail(sessionId: string) {
     return null
   }
 
-  // 2. 환경
   const { data: env } = await supabase
     .from('env_measurements')
     .select('air_temp, surface_temp, humidity, dew_point, delta_t')
     .eq('session_id', sessionId)
     .maybeSingle()
 
-  // 3. Batch
   const { data: batches } = await supabase
     .from('batch_records')
     .select('paint_name, base_no, hardener_no, created_at')
     .eq('session_id', sessionId)
     .order('created_at')
 
-  // 4. 세션이 다룬 구역들 + 각 구역의 회차 사양
   const { data: sessionZones } = await supabase
     .from('session_zones')
     .select(`
@@ -106,17 +110,34 @@ export async function getSessionDetail(sessionId: string) {
     `)
     .eq('session_id', sessionId)
 
-  // 5. 표면 측정
   const { data: surfaces } = await supabase
     .from('surface_measurements')
     .select('zone_id, salt, dust_size, dust_quantity, profile')
     .eq('session_id', sessionId)
 
-  // 6. DFT
   const { data: dfts } = await supabase
     .from('dft_measurements')
     .select('zone_id, avg_value, min_value, max_value, measurement_count')
     .eq('session_id', sessionId)
+
+  // 사진
+  const { data: photosRaw } = await supabase
+    .from('photos')
+    .select('id, photo_type, file_url, public_id, width, height, bytes, is_required, caption')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: true })
+
+  const photos: SessionPhoto[] = (photosRaw || []).map(p => ({
+    id: p.id,
+    photo_type: p.photo_type,
+    file_url: p.file_url,
+    public_id: p.public_id,
+    width: p.width,
+    height: p.height,
+    bytes: p.bytes,
+    is_required: p.is_required,
+    caption: p.caption,
+  }))
 
   type ZoneRow = {
     id: string
@@ -132,7 +153,6 @@ export async function getSessionDetail(sessionId: string) {
     }> | null
   }
 
-  // 구역마다 측정 데이터 매칭
   const zones = (sessionZones || []).map(sz => {
     const z = sz.zones as unknown as ZoneRow
     const spec = (z?.coating_specs || []).find(s => s.coat_order === session.coat_order)
@@ -203,5 +223,6 @@ export async function getSessionDetail(sessionId: string) {
       hardener_no: b.hardener_no,
     })),
     zones,
+    photos,
   }
 }
