@@ -2,6 +2,27 @@
 
 import { createClient } from '@/lib/supabase/server'
 
+// ============================================
+// 도료사 목록 조회 (signup용)
+// ============================================
+export async function getPaintMakersList() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('paint_makers')
+    .select('id, name')
+    .order('name')
+
+  if (error) {
+    console.error('getPaintMakersList error:', error)
+    return []
+  }
+
+  return data || []
+}
+
+// ============================================
+// signup (기존)
+// ============================================
 export type SignupInput = {
   role: 'maker' | 'qm' | 'owner'
   maker_name?: string
@@ -11,7 +32,6 @@ export type SignupInput = {
 
 export async function signup(input: SignupInput) {
   const supabase = await createClient()
-
   try {
     let maker_id: string | null = null
     if (input.role === 'maker' && input.maker_name) {
@@ -20,7 +40,6 @@ export async function signup(input: SignupInput) {
         .select('id')
         .eq('name', input.maker_name)
         .maybeSingle()
-
       if (existing) {
         maker_id = existing.id
       } else {
@@ -33,20 +52,17 @@ export async function signup(input: SignupInput) {
         maker_id = inserted.id
       }
     }
-
     const { data: existing } = await supabase
       .from('users')
       .select('id')
       .eq('device_id', input.device_id)
       .maybeSingle()
-
     const userPayload = {
       role: input.role,
       maker_id,
       name: input.name,
       device_id: input.device_id,
     }
-
     let userId: string
     if (existing) {
       const { error } = await supabase
@@ -64,7 +80,6 @@ export async function signup(input: SignupInput) {
       if (error) throw error
       userId = inserted.id
     }
-
     return {
       success: true,
       user_id: userId,

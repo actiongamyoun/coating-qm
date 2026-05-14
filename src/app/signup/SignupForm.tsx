@@ -1,19 +1,32 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signup } from '@/lib/actions/auth'
+import { signup, getPaintMakersList } from '@/lib/actions/auth'
 
 type Role = 'maker' | 'qm'
+type Maker = { id: string; name: string }
 
 export default function SignupForm() {
   const router = useRouter()
   const [step, setStep] = useState<'role' | 'info'>('role')
   const [role, setRole] = useState<Role | null>(null)
   const [name, setName] = useState('')
-  const [makerName, setMakerName] = useState('')
+  const [makers, setMakers] = useState<Maker[]>([])
+  const [selectedMakerName, setSelectedMakerName] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [loadingMakers, setLoadingMakers] = useState(false)
+
+  // 도료사 단계 들어가면 목록 로드
+  useEffect(() => {
+    if (step === 'info' && role === 'maker' && makers.length === 0) {
+      setLoadingMakers(true)
+      getPaintMakersList()
+        .then(setMakers)
+        .finally(() => setLoadingMakers(false))
+    }
+  }, [step, role, makers.length])
 
   function pickRole(r: Role) {
     setRole(r)
@@ -24,6 +37,7 @@ export default function SignupForm() {
   function goBack() {
     setStep('role')
     setError('')
+    setSelectedMakerName('')
   }
 
   function getOrCreateDeviceId(): string {
@@ -44,8 +58,8 @@ export default function SignupForm() {
       setError('이름을 입력하세요')
       return
     }
-    if (role === 'maker' && !makerName.trim()) {
-      setError('소속 도료사명을 입력하세요')
+    if (role === 'maker' && !selectedMakerName) {
+      setError('소속 도료사를 선택하세요')
       return
     }
 
@@ -53,7 +67,7 @@ export default function SignupForm() {
     const res = await signup({
       role,
       name: name.trim(),
-      maker_name: role === 'maker' ? makerName.trim() : undefined,
+      maker_name: role === 'maker' ? selectedMakerName : undefined,
       device_id: getOrCreateDeviceId(),
     })
     setSubmitting(false)
@@ -159,22 +173,40 @@ export default function SignupForm() {
               />
             </div>
 
-            {/* 도료사명 (maker만) */}
+            {/* 도료사 선택 (maker만) */}
             {role === 'maker' && (
               <div className="mb-5">
                 <label className="block text-xs font-black text-gray-700 mb-1.5">
                   소속 도료사 <span className="text-danger">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={makerName}
-                  onChange={e => setMakerName(e.target.value)}
-                  placeholder="예: KCC, IPK, 정석"
-                  className="w-full px-4 py-3 border-[1.5px] border-gray-300 rounded-lg text-base font-bold focus:outline-none focus:border-[#5ecbd6]"
-                />
-                <div className="text-[10px] text-gray-500 font-bold mt-1">
-                  소속 도료사명을 그대로 입력하세요 (마스터 데이터와 일치해야 함)
-                </div>
+                {loadingMakers ? (
+                  <div className="py-6 text-center text-xs text-gray-500 font-bold">
+                    <span className="material-icons animate-spin text-base">refresh</span>
+                    <div className="mt-1">불러오는 중...</div>
+                  </div>
+                ) : makers.length === 0 ? (
+                  <div className="bg-warning-light text-warning p-3 rounded-lg text-xs font-bold">
+                    <span className="material-icons text-base align-middle">warning</span>
+                    {' '}도료사 목록이 비어 있습니다. 관리자에게 문의하세요.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {makers.map(m => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setSelectedMakerName(m.name)}
+                        className={`py-3 px-3 rounded-lg text-sm font-black border-2 transition-all ${
+                          selectedMakerName === m.name
+                            ? 'bg-[#1a2332] text-white border-[#1a2332]'
+                            : 'bg-white text-[#1a2332] border-gray-200 hover:border-[#5ecbd6]'
+                        }`}
+                      >
+                        {m.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
