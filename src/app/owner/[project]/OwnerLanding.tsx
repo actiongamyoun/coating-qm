@@ -34,7 +34,13 @@ export default function OwnerLanding({ projectSlug }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-white text-[#1a2332]">
+    <>
+      {/* Material Icons 폰트 보장 로드 */}
+      <link
+        href="https://fonts.googleapis.com/icon?family=Material+Icons"
+        rel="stylesheet"
+      />
+      <div className="min-h-screen bg-white text-[#1a2332]">
       {/* ===== Hero (Dark) ===== */}
       <div className="hero-section relative overflow-hidden">
         <div
@@ -160,24 +166,24 @@ export default function OwnerLanding({ projectSlug }: Props) {
                 }}
               >
                 프로젝트 입장하기
-                <span className="material-icons-outlined text-[18px]">arrow_forward</span>
+                <span className="material-icons text-[18px]">arrow_forward</span>
               </button>
             </div>
 
             {/* trust badges */}
             <div className="flex justify-center gap-6 flex-wrap pt-8 border-t border-white/[0.08]">
               <div className="flex items-center gap-2 text-xs text-white/55 font-medium">
-                <span className="material-icons-outlined text-[16px] text-[#5ecbd6]">
+                <span className="material-icons text-[16px] text-[#5ecbd6]">
                   verified
                 </span>
                 객관적 측정 데이터
               </div>
               <div className="flex items-center gap-2 text-xs text-white/55 font-medium">
-                <span className="material-icons-outlined text-[16px] text-[#5ecbd6]">sync</span>
+                <span className="material-icons text-[16px] text-[#5ecbd6]">sync</span>
                 실시간 동기화
               </div>
               <div className="flex items-center gap-2 text-xs text-white/55 font-medium">
-                <span className="material-icons-outlined text-[16px] text-[#5ecbd6]">shield</span>
+                <span className="material-icons text-[16px] text-[#5ecbd6]">shield</span>
                 프로젝트별 격리
               </div>
             </div>
@@ -274,7 +280,7 @@ export default function OwnerLanding({ projectSlug }: Props) {
               className="absolute top-3 right-3 w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"
               type="button"
             >
-              <span className="material-icons-outlined">close</span>
+              <span className="material-icons">close</span>
             </button>
 
             {/* 아이콘 */}
@@ -287,7 +293,7 @@ export default function OwnerLanding({ projectSlug }: Props) {
                   boxShadow: '0 8px 20px rgba(94, 203, 214, 0.3)',
                 }}
               >
-                <span className="material-icons-outlined text-[28px]">lock</span>
+                <span className="material-icons text-[28px]">lock</span>
               </div>
               <h3 className="text-lg font-extrabold text-[#1a2332] mb-1">프로젝트 입장</h3>
               <div className="text-xs text-gray-500 font-medium">
@@ -313,7 +319,7 @@ export default function OwnerLanding({ projectSlug }: Props) {
                   className="px-3 py-2 rounded-lg text-sm font-medium mb-3 flex items-start gap-1.5"
                   style={{ background: '#FFEBEE', color: '#C62828' }}
                 >
-                  <span className="material-icons-outlined text-base mt-0.5">error_outline</span>
+                  <span className="material-icons text-base mt-0.5">error_outline</span>
                   <span>{error}</span>
                 </div>
               )}
@@ -324,7 +330,7 @@ export default function OwnerLanding({ projectSlug }: Props) {
                 className="w-full py-3.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
                 style={{ background: '#1a2332', color: 'white' }}
               >
-                <span className="material-icons-outlined text-[18px]">
+                <span className="material-icons text-[18px]">
                   {submitting ? 'hourglass_top' : 'login'}
                 </span>
                 {submitting ? '확인 중...' : '입장하기'}
@@ -345,6 +351,7 @@ export default function OwnerLanding({ projectSlug }: Props) {
         }
       `}</style>
     </div>
+    </>
   )
 }
 
@@ -365,7 +372,7 @@ function PrincipleCard({
           color: '#2dd4bf',
         }}
       >
-        <span className="material-icons-outlined text-[22px]">{icon}</span>
+        <span className="material-icons text-[22px]">{icon}</span>
       </div>
       <h3 className="text-[17px] font-bold mb-2 text-[#1a2332]">{title}</h3>
       <p className="text-[13px] text-[#5b6478] leading-relaxed">{desc}</p>
@@ -388,7 +395,7 @@ function AccessCard({
       <div
         className="w-14 h-14 rounded-2xl border-2 border-[#5ecbd6] bg-white flex items-center justify-center mx-auto mb-4 text-[#2dd4bf]"
       >
-        <span className="material-icons-outlined text-[26px]">{icon}</span>
+        <span className="material-icons text-[26px]">{icon}</span>
       </div>
       <h4 className="text-base font-bold mb-1.5 text-[#1a2332]">{title}</h4>
       <p className="text-xs text-[#5b6478] leading-relaxed">{desc}</p>
