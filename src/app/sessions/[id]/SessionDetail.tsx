@@ -4,6 +4,12 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { compressImage, formatFileSize } from '@/lib/utils/imageCompress'
+import {
+  updateEnvMeasurement,
+  updateBatchRecord,
+  updateSurfaceMeasurement,
+  updateDftMeasurement,
+} from '@/lib/actions/inspection-update'
 
 type Zone = {
   zone_id: string
@@ -77,18 +83,30 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
 
   const [photos, setPhotos] = useState<Photo[]>(detail.photos)
   const [userId, setUserId] = useState<string | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
   const [lightbox, setLightbox] = useState<Photo | null>(null)
   const [uploading, setUploading] = useState(false)
   const [mounted, setMounted] = useState(false)
+
+  // 편집 상태
+  const [editingEnv, setEditingEnv] = useState(false)
+  const [editingBatch, setEditingBatch] = useState<string | null>(null) // paint_name
+  const [editingZone, setEditingZone] = useState<string | null>(null) // zone_id
+
   const testInputRef = useRef<HTMLInputElement>(null)
   const otherInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setUserId(localStorage.getItem('coating_qm_user_id'))
+    setUserRole(localStorage.getItem('coating_qm_user_role'))
     setMounted(true)
   }, [])
 
-  // 미입력 체크
+  // 권한 체크 (편집 버튼 표시 여부)
+  // - QM/admin: 모든 검사 수정 가능
+  // - maker: 본인이 입력한 검사만 (서버에서 최종 검증)
+  const canEdit = !!userId && (userRole === 'qm' || userRole === 'admin' || userRole === 'maker')
+
   const envMissing = !detail.env
   const batchMissing = !isFinal && detail.batches.length === 0
   const measureMissing = detail.zones.filter(z => {
@@ -164,7 +182,7 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
       </div>
 
       <div className="max-w-md mx-auto p-4 space-y-3">
-        {/* 요약 */}
+        {/* 요약 (수정 불가) */}
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="font-black text-sm text-gray-700 mb-3 flex items-center gap-1">
             <span className="material-icons text-base text-primary">summarize</span>요약
@@ -189,9 +207,32 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
             <div className="font-black text-sm flex items-center gap-1">
               <span className="material-icons text-base text-paint">thermostat</span>환경 측정
             </div>
-            {envMissing && <MissingBadge />}
+            <div className="flex items-center gap-2">
+              {envMissing && !editingEnv && <MissingBadge />}
+              {mounted && canEdit && !editingEnv && (
+                <button
+                  onClick={() => setEditingEnv(true)}
+                  className="bg-paint-light text-paint px-2 py-1 rounded-full text-[11px] font-black flex items-center gap-0.5 hover:bg-paint hover:text-white transition-colors"
+                >
+                  <span className="material-icons text-[14px]">edit</span>
+                  수정
+                </button>
+              )}
+            </div>
           </div>
-          {detail.env ? (
+
+          {editingEnv ? (
+            <EnvEdit
+              initial={detail.env}
+              sessionId={detail.id}
+              userId={userId!}
+              onCancel={() => setEditingEnv(false)}
+              onSave={() => {
+                setEditingEnv(false)
+                router.refresh()
+              }}
+            />
+          ) : detail.env ? (
             <div className="grid grid-cols-3 gap-2 text-center">
               <EnvCell label="대기" value={fmt(detail.env.air_temp, '℃')} />
               <EnvCell label="표면" value={fmt(detail.env.surface_temp, '℃')} />
@@ -214,15 +255,47 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
               {batchMissing && <MissingBadge />}
             </div>
             {detail.batches.length === 0 ? (
-              <div className="text-center text-sm text-gray-500 py-3 font-bold">미입력</div>
+              <div className="text-center text-sm text-gray-500 py-3 font-bold">
+                미입력
+                {mounted && canEdit && (
+                  <div className="text-xs text-gray-400 mt-1">
+                    (도료별 Batch는 측정값과 함께 자동 생성됩니다)
+                  </div>
+                )}
+              </div>
             ) : (
               detail.batches.map((b, i) => (
                 <div key={i} className="py-2 border-b border-gray-200 last:border-0">
-                  <div className="font-black text-sm text-paint">{b.paint_name}</div>
-                  <div className="text-xs mt-1 grid grid-cols-2 gap-2 font-bold">
-                    <span>주제 · <strong>{b.base_no || '미입력'}</strong></span>
-                    <span>경화제 · <strong>{b.hardener_no || '미입력'}</strong></span>
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="font-black text-sm text-paint">{b.paint_name}</div>
+                    {mounted && canEdit && editingBatch !== b.paint_name && (
+                      <button
+                        onClick={() => setEditingBatch(b.paint_name)}
+                        className="bg-paint-light text-paint px-2 py-0.5 rounded-full text-[11px] font-black flex items-center gap-0.5 hover:bg-paint hover:text-white transition-colors"
+                      >
+                        <span className="material-icons text-[14px]">edit</span>
+                        수정
+                      </button>
+                    )}
                   </div>
+                  {editingBatch === b.paint_name ? (
+                    <BatchEdit
+                      paintName={b.paint_name}
+                      initial={b}
+                      sessionId={detail.id}
+                      userId={userId!}
+                      onCancel={() => setEditingBatch(null)}
+                      onSave={() => {
+                        setEditingBatch(null)
+                        router.refresh()
+                      }}
+                    />
+                  ) : (
+                    <div className="text-xs mt-1 grid grid-cols-2 gap-2 font-bold">
+                      <span>주제 · <strong>{b.base_no || '미입력'}</strong></span>
+                      <span>경화제 · <strong>{b.hardener_no || '미입력'}</strong></span>
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -246,7 +319,21 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
           ) : (
             <div className="space-y-3">
               {detail.zones.map(z => (
-                <ZoneCard key={z.zone_id} zone={z} isFirst={isFirst} />
+                <ZoneCard
+                  key={z.zone_id}
+                  zone={z}
+                  isFirst={isFirst}
+                  canEdit={mounted && canEdit}
+                  isEditing={editingZone === z.zone_id}
+                  onEditClick={() => setEditingZone(z.zone_id)}
+                  onCancel={() => setEditingZone(null)}
+                  onSave={() => {
+                    setEditingZone(null)
+                    router.refresh()
+                  }}
+                  sessionId={detail.id}
+                  userId={userId!}
+                />
               ))}
             </div>
           )}
@@ -350,7 +437,7 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
           <div className="bg-warning-light text-warning p-3 rounded-lg text-xs font-bold flex items-start gap-2">
             <span className="material-icons text-base">info</span>
             <div>
-              미입력 항목이 있습니다. 도료사에게 보완 요청 또는 직접 입력 기능은 추후 추가됩니다.
+              미입력 항목이 있습니다. {canEdit ? '각 카드의 ✏️ 수정 버튼으로 보완할 수 있습니다.' : '도료사 또는 QM에게 보완 요청하세요.'}
             </div>
           </div>
         )}
@@ -382,6 +469,375 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// ============================================
+// 환경 측정 편집 폼
+// ============================================
+function EnvEdit({
+  initial, sessionId, userId, onCancel, onSave,
+}: {
+  initial: Detail['env']
+  sessionId: string
+  userId: string
+  onCancel: () => void
+  onSave: () => void
+}) {
+  const [airTemp, setAirTemp] = useState(initial?.air_temp?.toString() || '')
+  const [surfaceTemp, setSurfaceTemp] = useState(initial?.surface_temp?.toString() || '')
+  const [humidity, setHumidity] = useState(initial?.humidity?.toString() || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSave() {
+    setError('')
+    if (!airTemp || !surfaceTemp || !humidity) {
+      setError('모든 값을 입력하세요')
+      return
+    }
+    setSaving(true)
+    const res = await updateEnvMeasurement(sessionId, userId, {
+      air_temp: airTemp,
+      surface_temp: surfaceTemp,
+      humidity,
+    })
+    setSaving(false)
+    if (res.success) onSave()
+    else setError(res.error || '저장 실패')
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2">
+        <NumInput label="대기 (℃)" value={airTemp} onChange={setAirTemp} />
+        <NumInput label="표면 (℃)" value={surfaceTemp} onChange={setSurfaceTemp} />
+        <NumInput label="습도 (%)" value={humidity} onChange={setHumidity} />
+      </div>
+      {error && (
+        <div className="bg-danger-light text-danger px-2 py-1.5 rounded text-xs font-bold">
+          {error}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <button
+          onClick={onCancel}
+          className="flex-1 py-2 border-2 border-gray-300 text-gray-700 rounded-lg text-sm font-black"
+        >
+          취소
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 py-2 bg-paint text-white rounded-lg text-sm font-black disabled:opacity-50"
+        >
+          {saving ? '저장 중...' : '저장'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// Batch 편집 폼
+// ============================================
+function BatchEdit({
+  paintName, initial, sessionId, userId, onCancel, onSave,
+}: {
+  paintName: string
+  initial: { base_no: string | null; hardener_no: string | null }
+  sessionId: string
+  userId: string
+  onCancel: () => void
+  onSave: () => void
+}) {
+  const [baseNo, setBaseNo] = useState(initial.base_no || '')
+  const [hardenerNo, setHardenerNo] = useState(initial.hardener_no || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSave() {
+    setError('')
+    setSaving(true)
+    const res = await updateBatchRecord(sessionId, userId, paintName, {
+      base_no: baseNo,
+      hardener_no: hardenerNo,
+    })
+    setSaving(false)
+    if (res.success) onSave()
+    else setError(res.error || '저장 실패')
+  }
+
+  return (
+    <div className="space-y-2 mt-2">
+      <div className="grid grid-cols-2 gap-2">
+        <TxtInput label="주제 Batch" value={baseNo} onChange={setBaseNo} placeholder="예: A2451-25" />
+        <TxtInput label="경화제 Batch" value={hardenerNo} onChange={setHardenerNo} placeholder="예: H1820-09" />
+      </div>
+      {error && (
+        <div className="bg-danger-light text-danger px-2 py-1.5 rounded text-xs font-bold">
+          {error}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 py-1.5 border-2 border-gray-300 text-gray-700 rounded-lg text-xs font-black">
+          취소
+        </button>
+        <button onClick={handleSave} disabled={saving} className="flex-1 py-1.5 bg-paint text-white rounded-lg text-xs font-black disabled:opacity-50">
+          {saving ? '저장 중...' : '저장'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// 구역 카드 (편집 가능)
+// ============================================
+function ZoneCard({
+  zone, isFirst, canEdit, isEditing, onEditClick, onCancel, onSave, sessionId, userId,
+}: {
+  zone: Zone
+  isFirst: boolean
+  canEdit: boolean
+  isEditing: boolean
+  onEditClick: () => void
+  onCancel: () => void
+  onSave: () => void
+  sessionId: string
+  userId: string
+}) {
+  return (
+    <div className={`border rounded-lg p-3 ${zone.is_pspc ? 'border-pink-200 bg-pink-50/30' : 'border-gray-200 bg-white'}`}>
+      <div className="flex justify-between items-start mb-2">
+        <div className="font-black text-sm flex items-center gap-1 flex-1">
+          {zone.is_pspc && <span className="material-icons text-base text-pink-700">lock</span>}
+          {zone.zone_name}
+          {zone.is_pspc && (
+            <span className="bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded text-[9px] font-black ml-1">
+              PSPC
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {zone.dft_target !== null && !isFirst && (
+            <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded">
+              목표 {zone.dft_target}㎛
+            </span>
+          )}
+          {canEdit && !isEditing && (
+            <button
+              onClick={onEditClick}
+              className="bg-primary-light text-primary-dark px-2 py-1 rounded-full text-[11px] font-black flex items-center gap-0.5 hover:bg-primary hover:text-white transition-colors"
+            >
+              <span className="material-icons text-[14px]">edit</span>
+              수정
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="text-xs text-gray-700 font-bold mb-2">{zone.paint_name}</div>
+
+      {isEditing ? (
+        isFirst ? (
+          <SurfaceEdit
+            zoneId={zone.zone_id}
+            initial={zone.surface}
+            sessionId={sessionId}
+            userId={userId}
+            onCancel={onCancel}
+            onSave={onSave}
+          />
+        ) : (
+          <DftEdit
+            zoneId={zone.zone_id}
+            initial={zone.dft}
+            sessionId={sessionId}
+            userId={userId}
+            onCancel={onCancel}
+            onSave={onSave}
+          />
+        )
+      ) : isFirst ? (
+        zone.surface ? (
+          <div className="grid grid-cols-4 gap-1 text-center">
+            <SmallCell label="Salt" value={fmt(zone.surface.salt, '')} unit="mg/m²" />
+            <SmallCell label="Dust Sz" value={zone.surface.dust_size?.toString() || '—'} />
+            <SmallCell label="Dust Qty" value={zone.surface.dust_quantity?.toString() || '—'} />
+            <SmallCell label="Profile" value={fmt(zone.surface.profile, '')} unit="㎛" />
+          </div>
+        ) : (
+          <div className="text-center text-xs text-danger font-bold py-2">측정 미입력</div>
+        )
+      ) : zone.dft ? (
+        <div className="grid grid-cols-4 gap-1 text-center">
+          <SmallCell label="평균" value={fmt(zone.dft.avg, '')} unit="㎛" highlight />
+          <SmallCell label="최소" value={fmt(zone.dft.min, '')} unit="㎛" />
+          <SmallCell label="최대" value={fmt(zone.dft.max, '')} unit="㎛" />
+          <SmallCell label="횟수" value={zone.dft.count?.toString() || '—'} />
+        </div>
+      ) : (
+        <div className="text-center text-xs text-danger font-bold py-2">측정 미입력</div>
+      )}
+    </div>
+  )
+}
+
+// ============================================
+// 표면 측정 편집 폼
+// ============================================
+function SurfaceEdit({
+  zoneId, initial, sessionId, userId, onCancel, onSave,
+}: {
+  zoneId: string
+  initial: Zone['surface']
+  sessionId: string
+  userId: string
+  onCancel: () => void
+  onSave: () => void
+}) {
+  const [salt, setSalt] = useState(initial?.salt?.toString() || '')
+  const [dustSize, setDustSize] = useState(initial?.dust_size?.toString() || '')
+  const [dustQty, setDustQty] = useState(initial?.dust_quantity?.toString() || '')
+  const [profile, setProfile] = useState(initial?.profile?.toString() || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSave() {
+    setError('')
+    setSaving(true)
+    const res = await updateSurfaceMeasurement(sessionId, userId, zoneId, {
+      salt, dust_size: dustSize, dust_quantity: dustQty, profile,
+    })
+    setSaving(false)
+    if (res.success) onSave()
+    else setError(res.error || '저장 실패')
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-4 gap-1">
+        <NumInput label="Salt" value={salt} onChange={setSalt} small />
+        <NumInput label="Dust Sz" value={dustSize} onChange={setDustSize} small />
+        <NumInput label="Dust Qty" value={dustQty} onChange={setDustQty} small />
+        <NumInput label="Profile" value={profile} onChange={setProfile} small />
+      </div>
+      {error && (
+        <div className="bg-danger-light text-danger px-2 py-1 rounded text-[10px] font-bold">{error}</div>
+      )}
+      <div className="flex gap-1.5">
+        <button onClick={onCancel} className="flex-1 py-1.5 border-2 border-gray-300 text-gray-700 rounded text-xs font-black">
+          취소
+        </button>
+        <button onClick={handleSave} disabled={saving} className="flex-1 py-1.5 bg-primary text-white rounded text-xs font-black disabled:opacity-50">
+          {saving ? '저장 중...' : '저장'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// DFT 측정 편집 폼
+// ============================================
+function DftEdit({
+  zoneId, initial, sessionId, userId, onCancel, onSave,
+}: {
+  zoneId: string
+  initial: Zone['dft']
+  sessionId: string
+  userId: string
+  onCancel: () => void
+  onSave: () => void
+}) {
+  const [avg, setAvg] = useState(initial?.avg?.toString() || '')
+  const [min, setMin] = useState(initial?.min?.toString() || '')
+  const [max, setMax] = useState(initial?.max?.toString() || '')
+  const [count, setCount] = useState(initial?.count?.toString() || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSave() {
+    setError('')
+    setSaving(true)
+    const res = await updateDftMeasurement(sessionId, userId, zoneId, {
+      avg_value: avg, min_value: min, max_value: max, measurement_count: count,
+    })
+    setSaving(false)
+    if (res.success) onSave()
+    else setError(res.error || '저장 실패')
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-4 gap-1">
+        <NumInput label="평균" value={avg} onChange={setAvg} small />
+        <NumInput label="최소" value={min} onChange={setMin} small />
+        <NumInput label="최대" value={max} onChange={setMax} small />
+        <NumInput label="횟수" value={count} onChange={setCount} small />
+      </div>
+      {error && (
+        <div className="bg-danger-light text-danger px-2 py-1 rounded text-[10px] font-bold">{error}</div>
+      )}
+      <div className="flex gap-1.5">
+        <button onClick={onCancel} className="flex-1 py-1.5 border-2 border-gray-300 text-gray-700 rounded text-xs font-black">
+          취소
+        </button>
+        <button onClick={handleSave} disabled={saving} className="flex-1 py-1.5 bg-primary text-white rounded text-xs font-black disabled:opacity-50">
+          {saving ? '저장 중...' : '저장'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// 공통 입력 컴포넌트
+// ============================================
+function NumInput({
+  label, value, onChange, small,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  small?: boolean
+}) {
+  return (
+    <div>
+      <div className={`text-gray-700 font-bold mb-0.5 ${small ? 'text-[9px]' : 'text-[10px]'}`}>{label}</div>
+      <input
+        type="number"
+        step="0.1"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className={`w-full bg-white border border-gray-300 rounded px-1 py-1 text-center font-black ${
+          small ? 'text-xs' : 'text-base'
+        }`}
+      />
+    </div>
+  )
+}
+
+function TxtInput({
+  label, value, onChange, placeholder,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+}) {
+  return (
+    <div>
+      <div className="text-[10px] text-gray-700 font-bold mb-0.5">{label}</div>
+      <input
+        type="text"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full bg-white border border-gray-300 rounded px-2 py-1.5 text-xs font-bold"
+      />
     </div>
   )
 }
@@ -427,57 +883,6 @@ function EnvCell({ label, value }: { label: string; value: string }) {
     <div className="bg-gray-50 rounded-lg p-2">
       <div className="text-[10px] text-gray-700 font-bold">{label}</div>
       <div className="text-base font-black mt-0.5">{value}</div>
-    </div>
-  )
-}
-
-function ZoneCard({ zone, isFirst }: { zone: Zone; isFirst: boolean }) {
-  return (
-    <div className={`border rounded-lg p-3 ${zone.is_pspc ? 'border-pink-200 bg-pink-50/30' : 'border-gray-200 bg-white'}`}>
-      <div className="flex justify-between items-start mb-2">
-        <div className="font-black text-sm flex items-center gap-1 flex-1">
-          {zone.is_pspc && <span className="material-icons text-base text-pink-700">lock</span>}
-          {zone.zone_name}
-          {zone.is_pspc && (
-            <span className="bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded text-[9px] font-black ml-1">
-              PSPC
-            </span>
-          )}
-        </div>
-        {zone.dft_target !== null && !isFirst && (
-          <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded">
-            목표 {zone.dft_target}㎛
-          </span>
-        )}
-      </div>
-
-      <div className="text-xs text-gray-700 font-bold mb-2">
-        {zone.paint_name}
-      </div>
-
-      {isFirst ? (
-        zone.surface ? (
-          <div className="grid grid-cols-4 gap-1 text-center">
-            <SmallCell label="Salt" value={fmt(zone.surface.salt, '')} unit="mg/m²" />
-            <SmallCell label="Dust Sz" value={zone.surface.dust_size?.toString() || '—'} />
-            <SmallCell label="Dust Qty" value={zone.surface.dust_quantity?.toString() || '—'} />
-            <SmallCell label="Profile" value={fmt(zone.surface.profile, '')} unit="㎛" />
-          </div>
-        ) : (
-          <div className="text-center text-xs text-danger font-bold py-2">측정 미입력</div>
-        )
-      ) : (
-        zone.dft ? (
-          <div className="grid grid-cols-4 gap-1 text-center">
-            <SmallCell label="평균" value={fmt(zone.dft.avg, '')} unit="㎛" highlight />
-            <SmallCell label="최소" value={fmt(zone.dft.min, '')} unit="㎛" />
-            <SmallCell label="최대" value={fmt(zone.dft.max, '')} unit="㎛" />
-            <SmallCell label="횟수" value={zone.dft.count?.toString() || '—'} />
-          </div>
-        ) : (
-          <div className="text-center text-xs text-danger font-bold py-2">측정 미입력</div>
-        )
-      )}
     </div>
   )
 }
