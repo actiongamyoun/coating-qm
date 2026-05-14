@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signupUser, getPaintMakers } from '@/lib/actions/auth'
+import { signup } from '@/lib/actions/auth'
 
-type PaintMaker = { id: string; name: string }
 type Role = 'maker' | 'qm'
 
 export default function SignupForm() {
@@ -12,15 +11,9 @@ export default function SignupForm() {
   const [step, setStep] = useState<'role' | 'info'>('role')
   const [role, setRole] = useState<Role | null>(null)
   const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [makerId, setMakerId] = useState<string>('')
-  const [makers, setMakers] = useState<PaintMaker[]>([])
+  const [makerName, setMakerName] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    getPaintMakers().then(setMakers).catch(() => {})
-  }, [])
 
   function pickRole(r: Role) {
     setRole(r)
@@ -33,6 +26,15 @@ export default function SignupForm() {
     setError('')
   }
 
+  function getOrCreateDeviceId(): string {
+    let id = localStorage.getItem('coating_qm_device_id')
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem('coating_qm_device_id', id)
+    }
+    return id
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -42,26 +44,28 @@ export default function SignupForm() {
       setError('이름을 입력하세요')
       return
     }
-    if (role === 'maker' && !makerId) {
-      setError('소속 도료사를 선택하세요')
+    if (role === 'maker' && !makerName.trim()) {
+      setError('소속 도료사명을 입력하세요')
       return
     }
 
     setSubmitting(true)
-    const res = await signupUser({
+    const res = await signup({
       role,
       name: name.trim(),
-      phone: phone.trim() || null,
-      paint_maker_id: role === 'maker' ? makerId : null,
+      maker_name: role === 'maker' ? makerName.trim() : undefined,
+      device_id: getOrCreateDeviceId(),
     })
     setSubmitting(false)
 
-    if (res.success && res.user) {
-      localStorage.setItem('coating_qm_user_id', res.user.id)
-      localStorage.setItem('coating_qm_user_role', res.user.role)
-      localStorage.setItem('coating_qm_user_name', res.user.name)
-      if (res.user.maker_name) {
-        localStorage.setItem('coating_qm_user_maker', res.user.maker_name)
+    if (res.success && res.user_id) {
+      localStorage.setItem('coating_qm_user_id', res.user_id)
+      localStorage.setItem('coating_qm_user_role', res.role)
+      localStorage.setItem('coating_qm_user_name', res.name)
+      if (res.maker_name) {
+        localStorage.setItem('coating_qm_user_maker', res.maker_name)
+      } else {
+        localStorage.removeItem('coating_qm_user_maker')
       }
       router.replace(role === 'maker' ? '/maker' : '/qm')
     } else {
@@ -155,38 +159,24 @@ export default function SignupForm() {
               />
             </div>
 
-            {/* 도료사 선택 (maker만) */}
+            {/* 도료사명 (maker만) */}
             {role === 'maker' && (
-              <div className="mb-4">
+              <div className="mb-5">
                 <label className="block text-xs font-black text-gray-700 mb-1.5">
                   소속 도료사 <span className="text-danger">*</span>
                 </label>
-                <select
-                  value={makerId}
-                  onChange={e => setMakerId(e.target.value)}
-                  className="w-full px-4 py-3 border-[1.5px] border-gray-300 rounded-lg text-base font-bold focus:outline-none focus:border-[#5ecbd6] bg-white"
-                >
-                  <option value="">선택하세요</option>
-                  {makers.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
+                <input
+                  type="text"
+                  value={makerName}
+                  onChange={e => setMakerName(e.target.value)}
+                  placeholder="예: KCC, IPK, 정석"
+                  className="w-full px-4 py-3 border-[1.5px] border-gray-300 rounded-lg text-base font-bold focus:outline-none focus:border-[#5ecbd6]"
+                />
+                <div className="text-[10px] text-gray-500 font-bold mt-1">
+                  소속 도료사명을 그대로 입력하세요 (마스터 데이터와 일치해야 함)
+                </div>
               </div>
             )}
-
-            {/* 연락처 */}
-            <div className="mb-5">
-              <label className="block text-xs font-black text-gray-700 mb-1.5">
-                연락처 <span className="text-gray-400 font-medium">(선택)</span>
-              </label>
-              <input
-                type="tel"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="010-1234-5678"
-                className="w-full px-4 py-3 border-[1.5px] border-gray-300 rounded-lg text-base font-bold focus:outline-none focus:border-[#5ecbd6]"
-              />
-            </div>
 
             {error && (
               <div className="mb-4 px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 bg-danger-light text-danger">
