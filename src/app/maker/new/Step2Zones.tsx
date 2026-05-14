@@ -27,7 +27,6 @@ export default function Step2Zones({ state, updateState, makerName, onNext, onBa
   }, [state.block_id, state.coat_order, makerName])
 
   function toggleZone(zone: ZoneListItem) {
-    if (!zone.accessible) return
     const isSelected = state.zone_ids.includes(zone.id)
     if (isSelected) {
       updateState({
@@ -62,7 +61,7 @@ export default function Step2Zones({ state, updateState, makerName, onNext, onBa
       <div className="space-y-4">
         <div className="bg-warning-light text-warning p-4 rounded-xl text-sm font-bold">
           <span className="material-icons align-middle mr-1">warning</span>
-          {state.coat_label} 회차에 적용 가능한 구역이 없습니다.
+          {state.coat_label} 회차에 {makerName ? `${makerName} 도료사가 담당하는 ` : ''}구역이 없습니다.
         </div>
         <button onClick={onBack} className="w-full py-3 border-2 border-gray-300 rounded-lg font-bold">
           이전
@@ -77,7 +76,7 @@ export default function Step2Zones({ state, updateState, makerName, onNext, onBa
         <span className="material-icons text-base">info</span>
         <div>
           <strong>{state.block_code} / {state.coat_label}</strong> 적용 가능 구역<br />
-          {makerName} 도료 구역만 선택 가능 (중복 선택)
+          {makerName && <>{makerName} 담당 구역 (중복 선택 가능)</>}
         </div>
       </div>
 
@@ -88,17 +87,14 @@ export default function Step2Zones({ state, updateState, makerName, onNext, onBa
             <label
               key={z.id}
               className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
-                !z.accessible
-                  ? 'opacity-50 cursor-not-allowed bg-gray-50 border-dashed border-gray-300'
-                  : selected
-                    ? 'border-primary bg-primary-light'
-                    : 'border-gray-300 bg-white hover:border-primary/50'
+                selected
+                  ? 'border-primary bg-primary-light'
+                  : 'border-gray-300 bg-white hover:border-primary/50'
               }`}
             >
               <input
                 type="checkbox"
                 checked={selected}
-                disabled={!z.accessible}
                 onChange={() => toggleZone(z)}
                 className="w-5 h-5"
               />
@@ -108,11 +104,6 @@ export default function Step2Zones({ state, updateState, makerName, onNext, onBa
                   {z.is_pspc && (
                     <span className="bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full text-[10px] font-black flex items-center gap-0.5">
                       <span className="material-icons text-[12px]">lock</span>PSPC
-                    </span>
-                  )}
-                  {!z.accessible && z.spec?.maker_name && (
-                    <span className="bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                      {z.spec.maker_name} 도료
                     </span>
                   )}
                 </div>

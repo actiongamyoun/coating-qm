@@ -7,6 +7,7 @@ import { getShips, getBlocks } from '@/lib/actions/inspection'
 type Props = {
   state: WizardState
   updateState: (patch: Partial<WizardState>) => void
+  makerName: string | null
   onNext: () => void
 }
 
@@ -32,13 +33,13 @@ const COATS = [
   { order: 99, label: 'FINAL' },
 ]
 
-export default function Step1Block({ state, updateState, onNext }: Props) {
+export default function Step1Block({ state, updateState, makerName, onNext }: Props) {
   const [ships, setShips] = useState<ShipItem[]>([])
   const [blocks, setBlocks] = useState<BlockItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getShips().then(data => {
+    getShips(makerName).then(data => {
       setShips(data)
       setLoading(false)
       if (data.length > 0 && !state.ship_id) {
@@ -46,11 +47,11 @@ export default function Step1Block({ state, updateState, onNext }: Props) {
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [makerName])
 
   useEffect(() => {
     if (!state.ship_id) return
-    getBlocks(state.ship_id).then(data => {
+    getBlocks(state.ship_id, makerName).then(data => {
       setBlocks(data)
       if (data.length > 0 && !state.block_id) {
         updateState({
@@ -61,7 +62,7 @@ export default function Step1Block({ state, updateState, onNext }: Props) {
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.ship_id])
+  }, [state.ship_id, makerName])
 
   function handleShipChange(id: string) {
     const ship = ships.find(s => s.id === id)
@@ -103,13 +104,24 @@ export default function Step1Block({ state, updateState, onNext }: Props) {
     return (
       <div className="bg-warning-light text-warning p-4 rounded-xl text-sm font-bold">
         <span className="material-icons align-middle mr-1">warning</span>
-        등록된 호선이 없습니다. 관리자 마스터 입력에서 먼저 데이터를 등록하세요.
+        {makerName
+          ? `${makerName} 도료사가 담당하는 호선이 없습니다. 관리자에게 마스터 데이터 등록을 요청하세요.`
+          : '등록된 호선이 없습니다. 관리자 마스터 입력에서 먼저 데이터를 등록하세요.'}
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
+      {makerName && (
+        <div className="bg-primary-light text-primary-dark p-3 rounded-lg text-xs font-bold flex items-start gap-2">
+          <span className="material-icons text-base">info</span>
+          <div>
+            <strong>{makerName}</strong> 담당 호선·블록만 표시됩니다
+          </div>
+        </div>
+      )}
+
       <div>
         <label className="block text-sm font-black mb-2">호선</label>
         <select
@@ -128,8 +140,10 @@ export default function Step1Block({ state, updateState, onNext }: Props) {
       <div>
         <label className="block text-sm font-black mb-2">블록</label>
         {blocks.length === 0 ? (
-          <div className="p-3 bg-gray-100 rounded-lg text-sm text-gray-500">
-            이 호선의 블록이 아직 없습니다
+          <div className="p-3 bg-gray-100 rounded-lg text-sm text-gray-500 font-bold">
+            {makerName
+              ? `이 호선에 ${makerName} 담당 블록이 없습니다`
+              : '이 호선의 블록이 아직 없습니다'}
           </div>
         ) : (
           <select
