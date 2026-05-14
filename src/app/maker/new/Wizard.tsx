@@ -105,8 +105,7 @@ export default function Wizard() {
     { n: 3, label: '환경' },
     { n: 4, label: 'Batch' },
     { n: 5, label: '측정' },
-    { n: 6, label: '사진' },
-    { n: 7, label: '확인' },
+    { n: 6, label: '확인' },
   ]
 
   if (!user) return null
@@ -129,7 +128,7 @@ export default function Wizard() {
         <div className="flex-1">
           <div className="text-xs opacity-70 font-bold">새 검사 기록</div>
           <div className="text-sm font-black">
-            {steps[step - 1].label} ({step}/7)
+            {steps[step - 1]?.label} ({step}/{steps.length})
           </div>
         </div>
         <div className="text-xs bg-white/10 px-2 py-1 rounded font-bold">
@@ -172,6 +171,7 @@ export default function Wizard() {
           <Step1Block
             state={state}
             updateState={updateState}
+            makerName={user.maker || null}
             onNext={() => setStep(2)}
           />
         )}
@@ -204,11 +204,11 @@ export default function Wizard() {
           <Step5Measure
             state={state}
             updateState={updateState}
-            onNext={() => setStep(7)}
+            onNext={() => setStep(6)}
             onBack={() => setStep(4)}
           />
         )}
-        {step === 7 && (
+        {step === 6 && (
           <Step7Confirm
             state={state}
             user={user}
