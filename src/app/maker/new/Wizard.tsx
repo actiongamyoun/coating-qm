@@ -80,6 +80,7 @@ export default function Wizard() {
   const [step, setStep] = useState(1)
   const [state, setState] = useState<WizardState>(initialState)
   const [user, setUser] = useState<{ id: string; name: string; maker: string } | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     const id = localStorage.getItem('coating_qm_user_id')
@@ -110,19 +111,24 @@ export default function Wizard() {
 
   if (!user) return null
 
+  // Step navigation 핸들러
+  function handleBack() {
+    if (step === 1) {
+      if (confirm('작성을 취소하시겠습니까?')) router.push('/maker')
+      return
+    }
+    // session_id 발급된 후에는 Step 1·2로 못 돌아감 (이미 DB에 저장된 상태)
+    if (sessionId && step <= 3) {
+      alert('세션이 저장된 후에는 호선·블록·구역을 변경할 수 없습니다.\n취소하려면 처음부터 다시 작성하세요.')
+      return
+    }
+    setStep(s => s - 1)
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 pb-8">
       <div className="sticky top-0 z-20 bg-gray-900 text-white px-4 py-3 flex items-center gap-3 shadow-md">
-        <button
-          onClick={() => {
-            if (step === 1) {
-              if (confirm('작성을 취소하시겠습니까?')) router.push('/maker')
-            } else {
-              setStep(s => s - 1)
-            }
-          }}
-          className="text-white"
-        >
+        <button onClick={handleBack} className="text-white">
           <span className="material-icons">arrow_back</span>
         </button>
         <div className="flex-1">
@@ -139,17 +145,25 @@ export default function Wizard() {
       <div className="bg-white px-2 py-3 border-b border-gray-200 flex items-center overflow-x-auto">
         {steps.map((s, i) => {
           const status = s.n < step ? 'done' : s.n === step ? 'active' : 'todo'
+          // session_id 발급 후엔 Step 1·2 못 감
+          const locked = sessionId !== null && s.n <= 2
           return (
             <div key={s.n} className="flex-1 min-w-[50px] text-center relative">
               <button
-                onClick={() => s.n <= step + 1 ? setStep(s.n) : null}
+                onClick={() => {
+                  if (locked) {
+                    alert('세션 저장 후에는 변경할 수 없습니다')
+                    return
+                  }
+                  if (s.n <= step + 1) setStep(s.n)
+                }}
                 className={`w-7 h-7 rounded-full font-black text-xs mx-auto flex items-center justify-center ${
-                  status === 'done' ? 'bg-success text-white' :
+                  status === 'done' ? (locked ? 'bg-gray-400' : 'bg-success') + ' text-white' :
                   status === 'active' ? 'bg-primary text-white' :
                   'bg-gray-300 text-white'
                 }`}
               >
-                {status === 'done' ? '✓' : s.n}
+                {status === 'done' ? (locked ? '🔒' : '✓') : s.n}
               </button>
               <div className={`text-[10px] mt-1 ${
                 status === 'todo' ? 'text-gray-500' : 'text-gray-900 font-black'
@@ -180,6 +194,8 @@ export default function Wizard() {
             state={state}
             updateState={updateState}
             makerName={user.maker}
+            userId={user.id}
+            onSessionCreated={(id) => setSessionId(id)}
             onNext={() => setStep(3)}
             onBack={() => setStep(1)}
           />
@@ -212,6 +228,7 @@ export default function Wizard() {
           <Step7Confirm
             state={state}
             user={user}
+            sessionId={sessionId}
             onBack={() => setStep(5)}
           />
         )}
@@ -219,4 +236,3 @@ export default function Wizard() {
     </div>
   )
 }
-

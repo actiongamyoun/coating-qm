@@ -3,15 +3,16 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { WizardState } from './Wizard'
-import { saveInspection } from '@/lib/actions/inspection-save'
+import { saveInspection, fillInspectionData } from '@/lib/actions/inspection-save'
 
 type Props = {
   state: WizardState
   user: { id: string; name: string; maker: string }
+  sessionId: string | null
   onBack: () => void
 }
 
-export default function Step7Confirm({ state, user, onBack }: Props) {
+export default function Step7Confirm({ state, user, sessionId, onBack }: Props) {
   const router = useRouter()
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -31,18 +32,44 @@ export default function Step7Confirm({ state, user, onBack }: Props) {
   async function handleSave() {
     setError('')
     setSaving(true)
-    const res = await saveInspection(state, user.id)
-    setSaving(false)
-    if (res.success) {
-      alert('저장 완료')
-      router.push('/maker')
+
+    let result: { success: boolean; session_id?: string; error?: string }
+
+    if (sessionId) {
+      // 이미 세션이 있음 (Step 2에서 createInspectionSession 호출됨)
+      // → 나머지 데이터만 채워 넣기
+      const res = await fillInspectionData(sessionId, state, user.id)
+      result = { ...res, session_id: sessionId }
     } else {
-      setError(res.error || '저장 실패')
+      // 세션 없음 (기존 흐름) → 한 번에 저장
+      result = await saveInspection(state, user.id)
+    }
+
+    setSaving(false)
+
+    if (result.success) {
+      alert('저장 완료')
+      if (result.session_id) {
+        router.push(`/sessions/${result.session_id}`)
+      } else {
+        router.push('/maker')
+      }
+    } else {
+      setError(result.error || '저장 실패')
     }
   }
 
   return (
     <div className="space-y-3">
+      {sessionId && (
+        <div className="bg-success-light text-success p-3 rounded-lg text-xs font-bold flex items-start gap-2">
+          <span className="material-icons text-base">check_circle</span>
+          <div>
+            검사 세션이 이미 저장되었습니다. <strong>완료</strong> 버튼을 누르면 환경·Batch·측정값이 추가 저장됩니다.
+          </div>
+        </div>
+      )}
+
       <div className="bg-white border border-gray-200 rounded-xl p-4">
         <div className="font-black text-sm text-gray-700 mb-3 flex items-center gap-1">
           <span className="material-icons text-base text-primary">summarize</span>요약
@@ -109,7 +136,7 @@ export default function Step7Confirm({ state, user, onBack }: Props) {
       {(batchMissing > 0 || measureMissing > 0 || !envFilled) && (
         <div className="bg-warning-light text-warning p-3 rounded-lg text-xs font-bold flex items-start gap-2">
           <span className="material-icons text-base">info</span>
-          미입력 항목이 있어도 저장 가능합니다. 홈에서 🔴 빨간 점으로 표시되며, 나중에 보완할 수 있습니다.
+          미입력 항목이 있어도 저장 가능합니다. 검사 상세 화면에서 ✏️ 수정 버튼으로 보완할 수 있습니다.
         </div>
       )}
 
@@ -128,8 +155,8 @@ export default function Step7Confirm({ state, user, onBack }: Props) {
           disabled={saving}
           className="flex-1 bg-success text-white py-3 rounded-lg font-black flex items-center justify-center gap-1 disabled:opacity-50"
         >
-          <span className="material-icons">{saving ? 'hourglass_top' : 'save'}</span>
-          {saving ? '저장 중...' : '저장'}
+          <span className="material-icons">{saving ? 'hourglass_top' : 'check_circle'}</span>
+          {saving ? '저장 중...' : sessionId ? '완료' : '저장'}
         </button>
       </div>
     </div>

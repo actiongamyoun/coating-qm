@@ -3,20 +3,27 @@
 import { useEffect, useState } from 'react'
 import type { WizardState, ZoneInfo } from './Wizard'
 import { getZonesByBlockCoat } from '@/lib/actions/inspection'
+import { createInspectionSession } from '@/lib/actions/inspection-save'
 
 type Props = {
   state: WizardState
   updateState: (patch: Partial<WizardState>) => void
   makerName: string
+  userId: string
+  onSessionCreated: (sessionId: string) => void
   onNext: () => void
   onBack: () => void
 }
 
 type ZoneListItem = Awaited<ReturnType<typeof getZonesByBlockCoat>>[number]
 
-export default function Step2Zones({ state, updateState, makerName, onNext, onBack }: Props) {
+export default function Step2Zones({
+  state, updateState, makerName, userId, onSessionCreated, onNext, onBack,
+}: Props) {
   const [zones, setZones] = useState<ZoneListItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     setLoading(true)
@@ -45,6 +52,34 @@ export default function Step2Zones({ state, updateState, makerName, onNext, onBa
         zone_ids: [...state.zone_ids, zone.id],
         zones_info: [...state.zones_info, info],
       })
+    }
+  }
+
+  async function handleSaveAndNext() {
+    setError('')
+    if (state.zone_ids.length === 0) {
+      setError('구역을 선택하세요')
+      return
+    }
+    setSaving(true)
+    const res = await createInspectionSession(
+      {
+        ship_id: state.ship_id,
+        block_id: state.block_id,
+        coat_order: state.coat_order,
+        coat_label: state.coat_label,
+        inspected_at: state.inspected_at,
+        zone_ids: state.zone_ids,
+      },
+      userId
+    )
+    setSaving(false)
+
+    if (res.success && res.session_id) {
+      onSessionCreated(res.session_id)
+      onNext()
+    } else {
+      setError(res.error || '세션 생성 실패')
     }
   }
 
@@ -131,16 +166,37 @@ export default function Step2Zones({ state, updateState, makerName, onNext, onBa
         </div>
       </div>
 
+      <div className="bg-warning-light text-warning p-3 rounded-lg text-xs font-bold flex items-start gap-2">
+        <span className="material-icons text-base">info</span>
+        <div>
+          <strong>저장 시 주의:</strong> 다음으로 진행하면 검사 세션이 생성되고
+          호선·블록·구역·회차는 더 이상 변경할 수 없습니다.
+        </div>
+      </div>
+
+      {error && (
+        <div className="bg-danger-light text-danger p-3 rounded-lg text-sm font-bold flex items-center gap-2">
+          <span className="material-icons text-base">error</span>{error}
+        </div>
+      )}
+
       <div className="flex gap-2 pt-3 border-t border-gray-200">
-        <button onClick={onBack} className="flex-1 py-3 border-2 border-primary text-primary rounded-lg font-black">
+        <button
+          onClick={onBack}
+          disabled={saving}
+          className="flex-1 py-3 border-2 border-primary text-primary rounded-lg font-black disabled:opacity-50"
+        >
           이전
         </button>
         <button
-          onClick={onNext}
-          disabled={selectedCount === 0}
+          onClick={handleSaveAndNext}
+          disabled={selectedCount === 0 || saving}
           className="flex-1 bg-primary text-white py-3 rounded-lg font-black flex items-center justify-center gap-1 disabled:opacity-50"
         >
-          다음 <span className="material-icons text-base">arrow_forward</span>
+          <span className="material-icons text-base">
+            {saving ? 'hourglass_top' : 'save'}
+          </span>
+          {saving ? '저장 중...' : '저장 후 다음'}
         </button>
       </div>
     </div>
