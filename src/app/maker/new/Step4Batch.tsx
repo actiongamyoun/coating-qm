@@ -57,16 +57,33 @@ export default function Step4Batch({ state, updateState, onNext, onBack }: Props
   if (isFinalCoat(state.coat_order)) {
     return (
       <div className="space-y-4">
-        <div className="bg-primary-light text-primary-dark p-4 rounded-xl text-sm font-bold text-center">
+        <div
+          className="p-4 rounded-xl text-sm font-bold text-center"
+          style={{
+            background: 'rgba(94, 203, 214, 0.1)',
+            color: '#0891a3',
+            border: '1px solid rgba(94, 203, 214, 0.25)',
+          }}
+        >
           <span className="material-icons text-3xl block mx-auto mb-2">skip_next</span>
           FINAL 회차는 Batch No. 입력이 필요 없습니다.
         </div>
         <div className="flex gap-2">
-          <button onClick={onBack} className="flex-1 py-3 border-2 border-paint text-paint rounded-lg font-black">
+          <button
+            onClick={onBack}
+            className="flex-1 py-3 border-2 border-[#1a2332] text-[#1a2332] rounded-lg font-black"
+          >
             이전
           </button>
-          <button onClick={onNext} className="flex-1 bg-paint text-white py-3 rounded-lg font-black">
-            다음 →
+          <button
+            onClick={onNext}
+            className="flex-1 text-white py-3 rounded-lg font-black flex items-center justify-center gap-1 transition-all hover:-translate-y-0.5"
+            style={{
+              background: 'linear-gradient(135deg, #1a2332 0%, #243144 100%)',
+            }}
+          >
+            다음
+            <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>arrow_forward</span>
           </button>
         </div>
       </div>
@@ -75,7 +92,14 @@ export default function Step4Batch({ state, updateState, onNext, onBack }: Props
 
   return (
     <div className="space-y-4">
-      <div className="bg-paint-light text-paint p-3 rounded-lg text-xs font-bold flex items-start gap-2">
+      <div
+        className="p-3 rounded-lg text-xs font-bold flex items-start gap-2"
+        style={{
+          background: 'rgba(94, 203, 214, 0.1)',
+          color: '#0891a3',
+          border: '1px solid rgba(94, 203, 214, 0.25)',
+        }}
+      >
         <span className="material-icons text-base">format_paint</span>
         <div>
           <strong>도료사 전담.</strong> 같은 도료가 여러 구역에 쓰이면 Batch 1번만 입력하면 됩니다.
@@ -83,7 +107,7 @@ export default function Step4Batch({ state, updateState, onNext, onBack }: Props
       </div>
 
       {state.batches.length === 0 && (
-        <div className="bg-gray-100 p-4 rounded-lg text-sm text-gray-600 text-center">
+        <div className="bg-gray-100 p-4 rounded-lg text-sm text-gray-600 text-center font-bold">
           구역을 선택하면 도료가 표시됩니다
         </div>
       )}
@@ -91,10 +115,17 @@ export default function Step4Batch({ state, updateState, onNext, onBack }: Props
       {state.batches.map((b, idx) => (
         <div
           key={b.paint_name}
-          className="border-2 border-paint bg-gradient-to-b from-paint-light to-white rounded-xl p-4"
+          className="border-2 rounded-xl p-4 bg-white"
+          style={{
+            borderColor: '#5ecbd6',
+            background: 'linear-gradient(180deg, rgba(94, 203, 214, 0.05) 0%, #ffffff 100%)',
+          }}
         >
-          <div className="flex justify-between items-start pb-3 mb-3 border-b-2 border-dashed border-paint">
-            <div className="flex items-center gap-1.5 text-paint font-black text-base">
+          <div
+            className="flex justify-between items-start pb-3 mb-3 border-b-2 border-dashed"
+            style={{ borderColor: '#5ecbd6' }}
+          >
+            <div className="flex items-center gap-1.5 font-black text-base" style={{ color: '#0891a3' }}>
               <span className="material-icons">palette</span>
               {b.paint_name}
             </div>
@@ -105,55 +136,67 @@ export default function Step4Batch({ state, updateState, onNext, onBack }: Props
           </div>
 
           <div className="flex items-center gap-2 mb-3">
-            <span className="w-16 text-xs font-black text-gray-700 leading-tight">
-              주제<br /><span className="text-[10px] opacity-70">Base</span>
+            <span className="w-16 text-xs font-black text-[#1a2332] leading-tight">
+              주제<br /><span className="text-[10px] opacity-70 font-bold">Base</span>
             </span>
             <input
               type="text"
               value={b.base_no}
               onChange={e => updateBatch(idx, 'base_no', e.target.value)}
               placeholder="예: A2451-25"
-              className="flex-1 p-3 border-[1.5px] border-gray-300 rounded-lg font-bold"
+              className="flex-1 p-3 border-[1.5px] border-gray-300 rounded-lg font-bold focus:border-[#5ecbd6] focus:outline-none"
             />
             <button
               type="button"
               onClick={() => alert('📷 OCR (추후 추가)')}
-              className="bg-paint text-white p-3 rounded-lg"
+              className="text-white p-3 rounded-lg"
+              style={{ background: '#1a2332' }}
               title="사진 + OCR"
             >
-              <span className="material-icons">photo_camera</span>
+              <span className="material-icons" style={{ color: '#5ecbd6' }}>photo_camera</span>
             </button>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="w-16 text-xs font-black text-gray-700 leading-tight">
-              경화제<br /><span className="text-[10px] opacity-70">Hardener</span>
+            <span className="w-16 text-xs font-black text-[#1a2332] leading-tight">
+              경화제<br /><span className="text-[10px] opacity-70 font-bold">Hardener</span>
             </span>
             <input
               type="text"
               value={b.hardener_no}
               onChange={e => updateBatch(idx, 'hardener_no', e.target.value)}
               placeholder="예: H1820-09"
-              className="flex-1 p-3 border-[1.5px] border-gray-300 rounded-lg font-bold"
+              className="flex-1 p-3 border-[1.5px] border-gray-300 rounded-lg font-bold focus:border-[#5ecbd6] focus:outline-none"
             />
             <button
               type="button"
               onClick={() => alert('📷 OCR (추후 추가)')}
-              className="bg-paint text-white p-3 rounded-lg"
+              className="text-white p-3 rounded-lg"
+              style={{ background: '#1a2332' }}
               title="사진 + OCR"
             >
-              <span className="material-icons">photo_camera</span>
+              <span className="material-icons" style={{ color: '#5ecbd6' }}>photo_camera</span>
             </button>
           </div>
         </div>
       ))}
 
       <div className="flex gap-2 pt-3 border-t border-gray-200">
-        <button onClick={onBack} className="flex-1 py-3 border-2 border-paint text-paint rounded-lg font-black">
+        <button
+          onClick={onBack}
+          className="flex-1 py-3 border-2 border-[#1a2332] text-[#1a2332] rounded-lg font-black"
+        >
           이전
         </button>
-        <button onClick={onNext} className="flex-1 bg-paint text-white py-3 rounded-lg font-black flex items-center justify-center gap-1">
-          다음 <span className="material-icons text-base">arrow_forward</span>
+        <button
+          onClick={onNext}
+          className="flex-1 text-white py-3 rounded-lg font-black flex items-center justify-center gap-1 transition-all hover:-translate-y-0.5"
+          style={{
+            background: 'linear-gradient(135deg, #1a2332 0%, #243144 100%)',
+          }}
+        >
+          다음
+          <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>arrow_forward</span>
         </button>
       </div>
     </div>

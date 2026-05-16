@@ -97,7 +97,7 @@ export default function Step1Block({ state, updateState, makerName, onNext }: Pr
   }
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500 text-sm">불러오는 중...</div>
+    return <div className="p-8 text-center text-gray-500 text-sm font-bold">불러오는 중...</div>
   }
 
   if (ships.length === 0) {
@@ -114,7 +114,14 @@ export default function Step1Block({ state, updateState, makerName, onNext }: Pr
   return (
     <div className="space-y-4">
       {makerName && (
-        <div className="bg-primary-light text-primary-dark p-3 rounded-lg text-xs font-bold flex items-start gap-2">
+        <div
+          className="p-3 rounded-lg text-xs font-bold flex items-start gap-2"
+          style={{
+            background: 'rgba(94, 203, 214, 0.1)',
+            color: '#0891a3',
+            border: '1px solid rgba(94, 203, 214, 0.25)',
+          }}
+        >
           <span className="material-icons text-base">info</span>
           <div>
             <strong>{makerName}</strong> 담당 호선·블록만 표시됩니다
@@ -123,22 +130,22 @@ export default function Step1Block({ state, updateState, makerName, onNext }: Pr
       )}
 
       <div>
-        <label className="block text-sm font-black mb-2">호선</label>
+        <label className="block text-sm font-black mb-2 text-[#1a2332]">호선</label>
         <select
           value={state.ship_id}
           onChange={e => handleShipChange(e.target.value)}
-          className="w-full p-3 border-[1.5px] border-gray-300 rounded-lg font-bold"
+          className="w-full p-3 border-[1.5px] border-gray-300 rounded-lg font-bold bg-white focus:border-[#5ecbd6] focus:outline-none"
         >
           {ships.map(s => (
             <option key={s.id} value={s.id}>
-              🚢 {s.name} {s.ship_type ? `· ${s.ship_type}` : ''}
+              {s.name} {s.ship_type ? `· ${s.ship_type}` : ''}
             </option>
           ))}
         </select>
       </div>
 
       <div>
-        <label className="block text-sm font-black mb-2">블록</label>
+        <label className="block text-sm font-black mb-2 text-[#1a2332]">블록</label>
         {blocks.length === 0 ? (
           <div className="p-3 bg-gray-100 rounded-lg text-sm text-gray-500 font-bold">
             {makerName
@@ -149,7 +156,7 @@ export default function Step1Block({ state, updateState, makerName, onNext }: Pr
           <select
             value={state.block_id}
             onChange={e => handleBlockChange(e.target.value)}
-            className="w-full p-3 border-[1.5px] border-gray-300 rounded-lg font-bold"
+            className="w-full p-3 border-[1.5px] border-gray-300 rounded-lg font-bold bg-white focus:border-[#5ecbd6] focus:outline-none"
           >
             {blocks.map(b => (
               <option key={b.id} value={b.id}>
@@ -162,10 +169,10 @@ export default function Step1Block({ state, updateState, makerName, onNext }: Pr
 
       {state.vendor_name && (
         <div>
-          <label className="block text-sm font-black mb-2">협력사</label>
+          <label className="block text-sm font-black mb-2 text-[#1a2332]">협력사</label>
           <input
             type="text"
-            value={`🏢 ${state.vendor_name}`}
+            value={state.vendor_name}
             readOnly
             className="w-full p-3 bg-gray-100 border-[1.5px] border-gray-300 rounded-lg font-medium text-gray-700"
           />
@@ -173,40 +180,56 @@ export default function Step1Block({ state, updateState, makerName, onNext }: Pr
       )}
 
       <div>
-        <label className="block text-sm font-black mb-2">회차</label>
+        <label className="block text-sm font-black mb-2 text-[#1a2332]">회차</label>
         <div className="grid grid-cols-6 gap-1.5">
-          {COATS.map(c => (
-            <button
-              key={c.order}
-              onClick={() => selectCoat(c.order, c.label)}
-              className={`py-3 px-1 border-2 rounded-lg font-black text-xs ${
-                state.coat_order === c.order
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-white border-gray-300 hover:border-primary/50'
-              }`}
-            >
-              {c.label}
-            </button>
-          ))}
+          {COATS.map(c => {
+            const selected = state.coat_order === c.order
+            return (
+              <button
+                key={c.order}
+                onClick={() => selectCoat(c.order, c.label)}
+                className="py-3 px-1 border-2 rounded-lg font-black text-xs transition-all"
+                style={
+                  selected
+                    ? {
+                        background: '#1a2332',
+                        color: '#ffffff',
+                        borderColor: '#1a2332',
+                      }
+                    : {
+                        background: '#ffffff',
+                        color: '#1a2332',
+                        borderColor: '#e5e7eb',
+                      }
+                }
+              >
+                {c.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-black mb-2">검사 일시</label>
+        <label className="block text-sm font-black mb-2 text-[#1a2332]">검사 일시</label>
         <input
           type="datetime-local"
           value={state.inspected_at.slice(0, 16)}
           onChange={e => updateState({ inspected_at: new Date(e.target.value).toISOString() })}
-          className="w-full p-3 border-[1.5px] border-gray-300 rounded-lg font-bold"
+          className="w-full p-3 border-[1.5px] border-gray-300 rounded-lg font-bold focus:border-[#5ecbd6] focus:outline-none"
         />
       </div>
 
       <button
         onClick={onNext}
         disabled={!canProceed()}
-        className="w-full bg-primary hover:bg-primary-dark text-white py-4 rounded-xl font-black flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+        className="w-full text-white py-4 rounded-xl font-black flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition-all hover:-translate-y-0.5"
+        style={{
+          background: 'linear-gradient(135deg, #1a2332 0%, #243144 100%)',
+        }}
       >
-        다음 <span className="material-icons">arrow_forward</span>
+        다음
+        <span className="material-icons" style={{ color: '#5ecbd6' }}>arrow_forward</span>
       </button>
     </div>
   )

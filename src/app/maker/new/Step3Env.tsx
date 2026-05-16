@@ -31,7 +31,14 @@ export default function Step3Env({ state, updateState, onNext, onBack }: Props) 
 
   return (
     <div className="space-y-4">
-      <div className="bg-paint-light text-paint p-3 rounded-lg text-xs font-bold flex items-start gap-2">
+      <div
+        className="p-3 rounded-lg text-xs font-bold flex items-start gap-2"
+        style={{
+          background: 'rgba(94, 203, 214, 0.1)',
+          color: '#0891a3',
+          border: '1px solid rgba(94, 203, 214, 0.25)',
+        }}
+      >
         <span className="material-icons text-base">lock</span>
         <div>
           <strong>도료사 전담 항목.</strong> QM은 조회만 가능합니다.
@@ -39,53 +46,54 @@ export default function Step3Env({ state, updateState, onNext, onBack }: Props) 
       </div>
 
       <div>
-        <label className="block text-sm font-black mb-2">대기 온도 (℃)</label>
+        <label className="block text-sm font-black mb-2 text-[#1a2332]">대기 온도 (℃)</label>
         <input
           type="number"
           step="0.1"
           value={state.env_air_temp}
           onChange={e => updateState({ env_air_temp: e.target.value })}
           placeholder="예: 24.5"
-          className="w-full p-3 text-2xl font-black text-center border-[1.5px] border-gray-300 rounded-lg"
+          className="w-full p-3 text-2xl font-black text-center border-[1.5px] border-gray-300 rounded-lg focus:border-[#5ecbd6] focus:outline-none"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-black mb-2">표면 온도 (℃)</label>
+        <label className="block text-sm font-black mb-2 text-[#1a2332]">표면 온도 (℃)</label>
         <input
           type="number"
           step="0.1"
           value={state.env_surface_temp}
           onChange={e => updateState({ env_surface_temp: e.target.value })}
           placeholder="예: 22.0"
-          className="w-full p-3 text-2xl font-black text-center border-[1.5px] border-gray-300 rounded-lg"
+          className="w-full p-3 text-2xl font-black text-center border-[1.5px] border-gray-300 rounded-lg focus:border-[#5ecbd6] focus:outline-none"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-black mb-2">상대 습도 (%)</label>
+        <label className="block text-sm font-black mb-2 text-[#1a2332]">상대 습도 (%)</label>
         <input
           type="number"
           step="0.1"
           value={state.env_humidity}
           onChange={e => updateState({ env_humidity: e.target.value })}
           placeholder="예: 72"
-          className="w-full p-3 text-2xl font-black text-center border-[1.5px] border-gray-300 rounded-lg"
+          className="w-full p-3 text-2xl font-black text-center border-[1.5px] border-gray-300 rounded-lg focus:border-[#5ecbd6] focus:outline-none"
         />
       </div>
 
       <div className="bg-gray-50 border-[1.5px] border-dashed border-gray-300 rounded-lg p-4 space-y-2">
-        <div className="text-xs font-black text-gray-700 mb-2 flex items-center gap-1">
-          <span className="material-icons text-base">calculate</span>자동 계산 (자체 점검)
+        <div className="text-xs font-black text-[#1a2332] mb-2 flex items-center gap-1">
+          <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>calculate</span>
+          자동 계산 (자체 점검)
         </div>
 
         <div className="flex justify-between items-center py-1.5 text-sm border-b border-gray-200">
           <span className="text-gray-700 font-bold">이슬점</span>
-          <span className="font-black">{dewPoint !== null ? `${dewPoint.toFixed(1)} ℃` : '—'}</span>
+          <span className="font-black text-[#1a2332]">{dewPoint !== null ? `${dewPoint.toFixed(1)} ℃` : '—'}</span>
         </div>
         <div className="flex justify-between items-center py-1.5 text-sm border-b border-gray-200">
           <span className="text-gray-700 font-bold">표면 − 이슬점</span>
-          <span className="font-black">
+          <span className="font-black text-[#1a2332]">
             {deltaT !== null ? (
               <span>
                 {deltaT.toFixed(1)} ℃{' '}
@@ -101,7 +109,7 @@ export default function Step3Env({ state, updateState, onNext, onBack }: Props) 
         </div>
         <div className="flex justify-between items-center py-1.5 text-sm">
           <span className="text-gray-700 font-bold">습도</span>
-          <span className="font-black">
+          <span className="font-black text-[#1a2332]">
             {!isNaN(RH) ? (
               <span>
                 {RH}%{' '}
@@ -118,15 +126,22 @@ export default function Step3Env({ state, updateState, onNext, onBack }: Props) 
       </div>
 
       <div className="flex gap-2 pt-3 border-t border-gray-200">
-        <button onClick={onBack} className="flex-1 py-3 border-2 border-paint text-paint rounded-lg font-black">
+        <button
+          onClick={onBack}
+          className="flex-1 py-3 border-2 border-[#1a2332] text-[#1a2332] rounded-lg font-black"
+        >
           이전
         </button>
         <button
           onClick={onNext}
           disabled={!canProceed}
-          className="flex-1 bg-paint text-white py-3 rounded-lg font-black flex items-center justify-center gap-1 disabled:opacity-50"
+          className="flex-1 text-white py-3 rounded-lg font-black flex items-center justify-center gap-1 disabled:opacity-50 transition-all hover:-translate-y-0.5"
+          style={{
+            background: 'linear-gradient(135deg, #1a2332 0%, #243144 100%)',
+          }}
         >
-          다음 <span className="material-icons text-base">arrow_forward</span>
+          다음
+          <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>arrow_forward</span>
         </button>
       </div>
     </div>

@@ -88,7 +88,7 @@ export default function Step2Zones({
   const pspcCount = state.zones_info.filter(z => z.is_pspc).length
 
   if (loading) {
-    return <div className="p-8 text-center text-gray-500 text-sm">불러오는 중...</div>
+    return <div className="p-8 text-center text-gray-500 text-sm font-bold">불러오는 중...</div>
   }
 
   if (zones.length === 0) {
@@ -98,7 +98,7 @@ export default function Step2Zones({
           <span className="material-icons align-middle mr-1">warning</span>
           {state.coat_label} 회차에 {makerName ? `${makerName} 도료사가 담당하는 ` : ''}구역이 없습니다.
         </div>
-        <button onClick={onBack} className="w-full py-3 border-2 border-gray-300 rounded-lg font-bold">
+        <button onClick={onBack} className="w-full py-3 border-2 border-gray-300 rounded-lg font-bold text-[#1a2332]">
           이전
         </button>
       </div>
@@ -107,7 +107,14 @@ export default function Step2Zones({
 
   return (
     <div className="space-y-3">
-      <div className="bg-primary-light text-primary-dark p-3 rounded-lg text-xs font-bold flex items-start gap-2">
+      <div
+        className="p-3 rounded-lg text-xs font-bold flex items-start gap-2"
+        style={{
+          background: 'rgba(94, 203, 214, 0.1)',
+          color: '#0891a3',
+          border: '1px solid rgba(94, 203, 214, 0.25)',
+        }}
+      >
         <span className="material-icons text-base">info</span>
         <div>
           <strong>{state.block_code} / {state.coat_label}</strong> 적용 가능 구역<br />
@@ -121,20 +128,20 @@ export default function Step2Zones({
           return (
             <label
               key={z.id}
-              className={`flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
-                selected
-                  ? 'border-primary bg-primary-light'
-                  : 'border-gray-300 bg-white hover:border-primary/50'
-              }`}
+              className="flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors bg-white"
+              style={{
+                borderColor: selected ? '#5ecbd6' : '#e5e7eb',
+                background: selected ? 'rgba(94, 203, 214, 0.08)' : '#ffffff',
+              }}
             >
               <input
                 type="checkbox"
                 checked={selected}
                 onChange={() => toggleZone(z)}
-                className="w-5 h-5"
+                className="w-5 h-5 accent-[#5ecbd6]"
               />
               <div className="flex-1">
-                <div className="font-black text-base flex items-center gap-1.5">
+                <div className="font-black text-base flex items-center gap-1.5 text-[#1a2332]">
                   {z.name}
                   {z.is_pspc && (
                     <span className="bg-pink-100 text-pink-700 px-2 py-0.5 rounded-full text-[10px] font-black flex items-center gap-0.5">
@@ -154,15 +161,15 @@ export default function Step2Zones({
       <div className="bg-gray-50 border-[1.5px] border-dashed border-gray-300 rounded-lg p-3 space-y-1.5 text-sm">
         <div className="flex justify-between">
           <span className="text-gray-700 font-bold">선택된 구역</span>
-          <span className="font-black">{selectedCount}개</span>
+          <span className="font-black text-[#1a2332]">{selectedCount}개</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-700 font-bold">도료 그룹</span>
-          <span className="font-black">{paintGroups}개</span>
+          <span className="font-black text-[#1a2332]">{paintGroups}개</span>
         </div>
         <div className="flex justify-between">
           <span className="text-gray-700 font-bold">그중 PSPC</span>
-          <span className="font-black">{pspcCount}개</span>
+          <span className="font-black text-[#1a2332]">{pspcCount}개</span>
         </div>
       </div>
 
@@ -184,16 +191,19 @@ export default function Step2Zones({
         <button
           onClick={onBack}
           disabled={saving}
-          className="flex-1 py-3 border-2 border-primary text-primary rounded-lg font-black disabled:opacity-50"
+          className="flex-1 py-3 border-2 border-[#1a2332] text-[#1a2332] rounded-lg font-black disabled:opacity-50"
         >
           이전
         </button>
         <button
           onClick={handleSaveAndNext}
           disabled={selectedCount === 0 || saving}
-          className="flex-1 bg-primary text-white py-3 rounded-lg font-black flex items-center justify-center gap-1 disabled:opacity-50"
+          className="flex-1 text-white py-3 rounded-lg font-black flex items-center justify-center gap-1 disabled:opacity-50 transition-all hover:-translate-y-0.5"
+          style={{
+            background: 'linear-gradient(135deg, #1a2332 0%, #243144 100%)',
+          }}
         >
-          <span className="material-icons text-base">
+          <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>
             {saving ? 'hourglass_top' : 'save'}
           </span>
           {saving ? '저장 중...' : '저장 후 다음'}

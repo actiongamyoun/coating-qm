@@ -36,12 +36,9 @@ export default function Step7Confirm({ state, user, sessionId, onBack }: Props) 
     let result: { success: boolean; session_id?: string; error?: string }
 
     if (sessionId) {
-      // 이미 세션이 있음 (Step 2에서 createInspectionSession 호출됨)
-      // → 나머지 데이터만 채워 넣기
       const res = await fillInspectionData(sessionId, state, user.id)
       result = { ...res, session_id: sessionId }
     } else {
-      // 세션 없음 (기존 흐름) → 한 번에 저장
       result = await saveInspection(state, user.id)
     }
 
@@ -71,8 +68,8 @@ export default function Step7Confirm({ state, user, sessionId, onBack }: Props) 
       )}
 
       <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <div className="font-black text-sm text-gray-700 mb-3 flex items-center gap-1">
-          <span className="material-icons text-base text-primary">summarize</span>요약
+        <div className="font-black text-sm text-[#1a2332] mb-3 flex items-center gap-1">
+          <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>summarize</span>요약
         </div>
         <SummaryRow label="호선" value={state.ship_name} />
         <SummaryRow label="블록 / 회차" value={`${state.block_code} / ${state.coat_label}`} />
@@ -83,18 +80,18 @@ export default function Step7Confirm({ state, user, sessionId, onBack }: Props) 
 
       {!isFinal && state.batches.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="font-black text-sm text-gray-700 mb-3 flex items-center gap-1">
-            <span className="material-icons text-base text-paint">format_paint</span>Batch
+          <div className="font-black text-sm text-[#1a2332] mb-3 flex items-center gap-1">
+            <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>format_paint</span>Batch
           </div>
           {state.batches.map(b => (
             <div key={b.paint_name} className="flex justify-between items-start py-2 border-b border-gray-200 last:border-0 text-sm">
               <div>
-                <div className="font-black">{b.paint_name}</div>
-                <div className="text-[10px] text-gray-500">
+                <div className="font-black text-[#1a2332]">{b.paint_name}</div>
+                <div className="text-[10px] text-gray-500 font-bold">
                   {b.zone_ids.map(id => state.zones_info.find(z => z.id === id)?.name).filter(Boolean).join(', ')}
                 </div>
               </div>
-              <div className="text-right text-xs font-bold">
+              <div className="text-right text-xs font-bold text-[#1a2332]">
                 {(b.base_no || b.hardener_no) ? (
                   <>
                     {b.base_no && <div>주제 {b.base_no}</div>}
@@ -110,14 +107,13 @@ export default function Step7Confirm({ state, user, sessionId, onBack }: Props) 
       )}
 
       <div className="bg-white border border-gray-200 rounded-xl p-4">
-        <div className="font-black text-sm text-gray-700 mb-3 flex items-center gap-1">
-          <span className="material-icons text-base text-primary">fact_check</span>입력 현황
+        <div className="font-black text-sm text-[#1a2332] mb-3 flex items-center gap-1">
+          <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>fact_check</span>입력 현황
         </div>
-        <StatusRow icon="thermostat" iconColor="text-paint" label="환경" status={envFilled ? 'ok' : 'miss'} note="" />
+        <StatusRow icon="thermostat" label="환경" status={envFilled ? 'ok' : 'miss'} note="" />
         {!isFinal && (
           <StatusRow
             icon="format_paint"
-            iconColor="text-paint"
             label="Batch"
             status={batchMissing === 0 ? 'ok' : 'miss'}
             note={batchMissing > 0 ? `${batchMissing}건 미입력` : ''}
@@ -125,7 +121,6 @@ export default function Step7Confirm({ state, user, sessionId, onBack }: Props) 
         )}
         <StatusRow
           icon={isFirst ? 'science' : 'straighten'}
-          iconColor="text-primary"
           label={isFirst ? '표면(Salt/Dust/Profile)' : 'DFT'}
           status={measureMissing === 0 ? 'ok' : 'miss'}
           note={measureMissing > 0 ? `${measureMissing}건 미입력` : ''}
@@ -147,13 +142,19 @@ export default function Step7Confirm({ state, user, sessionId, onBack }: Props) 
       )}
 
       <div className="flex gap-2 pt-3 border-t border-gray-200">
-        <button onClick={onBack} className="flex-1 py-3 border-2 border-primary text-primary rounded-lg font-black">
+        <button
+          onClick={onBack}
+          className="flex-1 py-3 border-2 border-[#1a2332] text-[#1a2332] rounded-lg font-black"
+        >
           이전
         </button>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex-1 bg-success text-white py-3 rounded-lg font-black flex items-center justify-center gap-1 disabled:opacity-50"
+          className="flex-1 text-white py-3 rounded-lg font-black flex items-center justify-center gap-1 disabled:opacity-50 transition-all hover:-translate-y-0.5"
+          style={{
+            background: 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)',
+          }}
         >
           <span className="material-icons">{saving ? 'hourglass_top' : 'check_circle'}</span>
           {saving ? '저장 중...' : sessionId ? '완료' : '저장'}
@@ -167,16 +168,15 @@ function SummaryRow({ label, value, last }: { label: string; value: string; last
   return (
     <div className={`flex justify-between py-2 ${last ? '' : 'border-b border-gray-200'} text-sm`}>
       <span className="text-gray-700 font-bold">{label}</span>
-      <span className="font-black">{value}</span>
+      <span className="font-black text-[#1a2332]">{value}</span>
     </div>
   )
 }
 
 function StatusRow({
-  icon, iconColor, label, status, note, last,
+  icon, label, status, note, last,
 }: {
   icon: string
-  iconColor: string
   label: string
   status: 'ok' | 'miss'
   note: string
@@ -184,8 +184,8 @@ function StatusRow({
 }) {
   return (
     <div className={`flex justify-between items-center py-2 ${last ? '' : 'border-b border-gray-200'}`}>
-      <span className="font-bold text-sm flex items-center gap-1">
-        <span className={`material-icons text-base ${iconColor}`}>{icon}</span>
+      <span className="font-bold text-sm flex items-center gap-1 text-[#1a2332]">
+        <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>{icon}</span>
         {label}
       </span>
       {status === 'ok' ? (

@@ -8,6 +8,7 @@ import Step3Env from './Step3Env'
 import Step4Batch from './Step4Batch'
 import Step5Measure from './Step5Measure'
 import Step7Confirm from './Step7Confirm'
+import AppHeader from '@/components/AppHeader'
 
 export type WizardState = {
   ship_id: string
@@ -111,13 +112,11 @@ export default function Wizard() {
 
   if (!user) return null
 
-  // Step navigation 핸들러
   function handleBack() {
     if (step === 1) {
       if (confirm('작성을 취소하시겠습니까?')) router.push('/maker')
       return
     }
-    // session_id 발급된 후에는 Step 1·2로 못 돌아감 (이미 DB에 저장된 상태)
     if (sessionId && step <= 3) {
       alert('세션이 저장된 후에는 호선·블록·구역을 변경할 수 없습니다.\n취소하려면 처음부터 다시 작성하세요.')
       return
@@ -127,26 +126,29 @@ export default function Wizard() {
 
   return (
     <div className="min-h-screen bg-gray-100 pb-8">
-      <div className="sticky top-0 z-20 bg-gray-900 text-white px-4 py-3 flex items-center gap-3 shadow-md">
-        <button onClick={handleBack} className="text-white">
-          <span className="material-icons">arrow_back</span>
-        </button>
-        <div className="flex-1">
-          <div className="text-xs opacity-70 font-bold">새 검사 기록</div>
-          <div className="text-sm font-black">
-            {steps[step - 1]?.label} ({step}/{steps.length})
-          </div>
-        </div>
-        <div className="text-xs bg-white/10 px-2 py-1 rounded font-bold">
-          {user.maker} · {user.name}
-        </div>
-      </div>
+      <AppHeader
+        roleLabel={`검사 작성 (${step}/${steps.length})`}
+        subtitle={steps[step - 1]?.label}
+        showBack
+        onBack={handleBack}
+        showSettings={false}
+      />
 
+      {/* 진척 바 */}
       <div className="bg-white px-2 py-3 border-b border-gray-200 flex items-center overflow-x-auto">
         {steps.map((s, i) => {
           const status = s.n < step ? 'done' : s.n === step ? 'active' : 'todo'
-          // session_id 발급 후엔 Step 1·2 못 감
           const locked = sessionId !== null && s.n <= 2
+
+          // 색상 결정
+          let circleBg = '#d1d5db' // gray-300 (todo)
+          let circleText = '#ffffff'
+          if (status === 'done') {
+            circleBg = locked ? '#9ca3af' : '#5ecbd6' // gray-400 or cyan
+          } else if (status === 'active') {
+            circleBg = '#1a2332' // dark navy
+          }
+
           return (
             <div key={s.n} className="flex-1 min-w-[50px] text-center relative">
               <button
@@ -157,23 +159,25 @@ export default function Wizard() {
                   }
                   if (s.n <= step + 1) setStep(s.n)
                 }}
-                className={`w-7 h-7 rounded-full font-black text-xs mx-auto flex items-center justify-center ${
-                  status === 'done' ? (locked ? 'bg-gray-400' : 'bg-success') + ' text-white' :
-                  status === 'active' ? 'bg-primary text-white' :
-                  'bg-gray-300 text-white'
-                }`}
+                className="w-7 h-7 rounded-full font-black text-xs mx-auto flex items-center justify-center transition-colors"
+                style={{ background: circleBg, color: circleText }}
               >
                 {status === 'done' ? (locked ? '🔒' : '✓') : s.n}
               </button>
-              <div className={`text-[10px] mt-1 ${
-                status === 'todo' ? 'text-gray-500' : 'text-gray-900 font-black'
-              }`}>
+              <div
+                className={`text-[10px] mt-1 font-bold ${
+                  status === 'todo' ? 'text-gray-400' : 'text-[#1a2332]'
+                }`}
+              >
                 {s.label}
               </div>
               {i < steps.length - 1 && (
-                <div className={`absolute top-[14px] left-[65%] right-[-35%] h-0.5 ${
-                  s.n < step ? 'bg-success' : 'bg-gray-300'
-                }`} />
+                <div
+                  className="absolute top-[14px] left-[65%] right-[-35%] h-0.5"
+                  style={{
+                    background: s.n < step ? '#5ecbd6' : '#e5e7eb',
+                  }}
+                />
               )}
             </div>
           )
