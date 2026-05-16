@@ -8,6 +8,7 @@ type Props = {
   state: WizardState
   updateState: (patch: Partial<WizardState>) => void
   makerName: string | null
+  userRole: 'maker' | 'qm'
   onNext: () => void
 }
 
@@ -24,19 +25,24 @@ type BlockItem = {
   vendor: { id: string; name: string; vendor_type: string | null } | null
 }
 
-const COATS = [
+const COATS_MAKER = [
   { order: 1, label: '1ST' },
   { order: 2, label: '2ND' },
   { order: 3, label: '3RD' },
   { order: 4, label: '4TH' },
   { order: 5, label: '5TH' },
+]
+
+const COATS_QM = [
   { order: 99, label: 'FINAL' },
 ]
 
-export default function Step1Block({ state, updateState, makerName, onNext }: Props) {
+export default function Step1Block({ state, updateState, makerName, userRole, onNext }: Props) {
   const [ships, setShips] = useState<ShipItem[]>([])
   const [blocks, setBlocks] = useState<BlockItem[]>([])
   const [loading, setLoading] = useState(true)
+
+  const COATS = userRole === 'qm' ? COATS_QM : COATS_MAKER
 
   useEffect(() => {
     getShips(makerName).then(data => {
@@ -106,13 +112,29 @@ export default function Step1Block({ state, updateState, makerName, onNext }: Pr
         <span className="material-icons align-middle mr-1">warning</span>
         {makerName
           ? `${makerName} 도료사가 담당하는 호선이 없습니다. 관리자에게 마스터 데이터 등록을 요청하세요.`
-          : '등록된 호선이 없습니다. 관리자 마스터 입력에서 먼저 데이터를 등록하세요.'}
+          : '등록된 호선이 없습니다.'}
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
+      {userRole === 'qm' && (
+        <div
+          className="p-3 rounded-lg text-xs font-bold flex items-start gap-2"
+          style={{
+            background: 'rgba(94, 203, 214, 0.1)',
+            color: '#0891a3',
+            border: '1px solid rgba(94, 203, 214, 0.25)',
+          }}
+        >
+          <span className="material-icons text-base">verified_user</span>
+          <div>
+            <strong>QM FINAL 검사 모드.</strong> 일반 회차가 완료된 블록에 FINAL DFT를 기록합니다.
+          </div>
+        </div>
+      )}
+
       {makerName && (
         <div
           className="p-3 rounded-lg text-xs font-bold flex items-start gap-2"
@@ -180,8 +202,10 @@ export default function Step1Block({ state, updateState, makerName, onNext }: Pr
       )}
 
       <div>
-        <label className="block text-sm font-black mb-2 text-[#1a2332]">회차</label>
-        <div className="grid grid-cols-6 gap-1.5">
+        <label className="block text-sm font-black mb-2 text-[#1a2332]">
+          회차 {userRole === 'qm' && <span className="text-xs text-gray-500 font-bold">(FINAL 전용)</span>}
+        </label>
+        <div className={`grid gap-1.5 ${COATS.length === 1 ? 'grid-cols-1' : 'grid-cols-5'}`}>
           {COATS.map(c => {
             const selected = state.coat_order === c.order
             return (

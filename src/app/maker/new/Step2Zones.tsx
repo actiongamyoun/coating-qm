@@ -47,6 +47,7 @@ export default function Step2Zones({
         is_pspc: zone.is_pspc,
         paint_name: zone.spec?.paint_name || '',
         dft_target: zone.spec?.dft_target ?? null,
+        area_total: zone.area_total ?? null,
       }
       updateState({
         zone_ids: [...state.zone_ids, zone.id],
@@ -151,6 +152,7 @@ export default function Step2Zones({
                 </div>
                 <div className="text-xs text-gray-700 mt-1 font-medium">
                   {z.spec?.paint_name} {z.spec?.dft_target ? `· ${z.spec.dft_target}㎛` : ''}
+                  {z.area_total ? ` · ${z.area_total}㎡` : ''}
                 </div>
               </div>
             </label>

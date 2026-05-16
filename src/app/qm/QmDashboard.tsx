@@ -24,7 +24,6 @@ export default function QmDashboard({ userName: _userName }: { userName: string 
   const [recentSessions, setRecentSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
 
-  // 호선 목록 로드
   useEffect(() => {
     getShipsWithStats().then(data => {
       setShips(data)
@@ -32,7 +31,6 @@ export default function QmDashboard({ userName: _userName }: { userName: string 
     })
   }, [])
 
-  // 선택 호선의 데이터 로드
   useEffect(() => {
     if (!selectedShipId) {
       setProgress([])
@@ -54,15 +52,16 @@ export default function QmDashboard({ userName: _userName }: { userName: string 
     })
   }, [selectedShipId])
 
-  // 통계
   const totalSessions = recentSessions.length
   const missingCount = incomplete.length
   const completeCount = totalSessions - missingCount
 
-  // 헤더에 표시할 호선 정보
   const selectedShip = ships.find(s => s.id === selectedShipId)
   const projectName = (selectedShip as Ship & { project_name?: string })?.project_name || null
   const shipName = selectedShip?.name || null
+
+  // 100% 완료된 블록 — FINAL 가능
+  const finalReadyBlocks = progress.filter(p => p.percent === 100)
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -106,6 +105,29 @@ export default function QmDashboard({ userName: _userName }: { userName: string 
               <StatCard label="미입력" value={missingCount} icon="priority_high" tone="danger" />
               <StatCard label="완료" value={completeCount} icon="check_circle" tone="success" />
             </div>
+
+            {/* FINAL 기록 진입점 */}
+            <Link
+              href="/maker/new"
+              className="block rounded-xl text-base font-black text-center text-white py-5 transition-all hover:-translate-y-0.5"
+              style={{
+                background: 'linear-gradient(135deg, #1a2332 0%, #243144 100%)',
+                boxShadow: '0 8px 20px rgba(26, 35, 50, 0.25)',
+              }}
+            >
+              <span
+                className="material-icons text-2xl align-middle mr-2"
+                style={{ color: '#5ecbd6' }}
+              >
+                flag
+              </span>
+              FINAL DFT 기록하기
+              {finalReadyBlocks.length > 0 && (
+                <span className="ml-2 text-xs font-bold bg-white/15 px-2 py-1 rounded-full align-middle">
+                  대상 {finalReadyBlocks.length}개
+                </span>
+              )}
+            </Link>
 
             {/* 블록별 진척률 */}
             <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -247,14 +269,33 @@ function StatCard({
 }
 
 function BlockProgressRow({ p }: { p: Progress }) {
+  const isFinalReady = p.percent === 100
   return (
-    <div>
+    <div
+      className="rounded-lg p-2"
+      style={
+        isFinalReady
+          ? {
+              background: 'rgba(94, 203, 214, 0.08)',
+              border: '1px solid rgba(94, 203, 214, 0.3)',
+            }
+          : {}
+      }
+    >
       <div className="flex justify-between items-center mb-1">
         <div className="text-sm font-black flex items-center gap-1 text-[#1a2332]">
           {p.block_code}
           {p.vendor_name && (
             <span className="text-[10px] text-gray-500 font-bold ml-1">
               · {p.vendor_name}
+            </span>
+          )}
+          {isFinalReady && (
+            <span
+              className="ml-1 text-[9px] font-black px-1.5 py-0.5 rounded"
+              style={{ background: '#5ecbd6', color: '#1a2332' }}
+            >
+              FINAL 가능
             </span>
           )}
         </div>

@@ -21,10 +21,10 @@ export type WizardState = {
   inspected_at: string
   zone_ids: string[]
   zones_info: ZoneInfo[]
-  env_air_temp: string       // 건구온도 (Dry Bulb)
-  env_wet_bulb_temp: string  // 습구온도 (Wet Bulb)
-  env_surface_temp: string   // 표면온도 (스틸온도)
-  env_humidity: string       // 상대습도 (자동 계산)
+  env_air_temp: string
+  env_wet_bulb_temp: string
+  env_surface_temp: string
+  env_humidity: string
   batches: BatchInput[]
   measurements: MeasurementInput[]
 }
@@ -35,6 +35,7 @@ export type ZoneInfo = {
   is_pspc: boolean
   paint_name: string
   dft_target: number | null
+  area_total: number | null
 }
 
 export type BatchInput = {
@@ -49,6 +50,7 @@ export type MeasurementInput = {
   zone_name: string
   is_pspc: boolean
   dft_target: number | null
+  area_total: number | null
   dft_avg: string
   dft_min: string
   dft_max: string
@@ -82,13 +84,14 @@ export default function Wizard() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [state, setState] = useState<WizardState>(initialState)
-  const [user, setUser] = useState<{ id: string; name: string; maker: string } | null>(null)
+  const [user, setUser] = useState<{ id: string; name: string; maker: string; role: 'maker' | 'qm' } | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     const id = localStorage.getItem('coating_qm_user_id')
     const role = localStorage.getItem('coating_qm_user_role')
-    if (!id || role !== 'maker') {
+    // 도료사와 QM 모두 접근 가능 (QM은 FINAL 전용)
+    if (!id || (role !== 'maker' && role !== 'qm')) {
       router.replace('/signup')
       return
     }
@@ -96,7 +99,17 @@ export default function Wizard() {
       id,
       name: localStorage.getItem('coating_qm_user_name') || '',
       maker: localStorage.getItem('coating_qm_user_maker') || '',
+      role: role as 'maker' | 'qm',
     })
+
+    // QM이면 초기 회차를 FINAL로
+    if (role === 'qm') {
+      setState(prev => ({
+        ...prev,
+        coat_order: 99,
+        coat_label: 'FINAL',
+      }))
+    }
   }, [router])
 
   function updateState(patch: Partial<WizardState>) {
@@ -116,7 +129,8 @@ export default function Wizard() {
 
   function handleBack() {
     if (step === 1) {
-      if (confirm('작성을 취소하시겠습니까?')) router.push('/maker')
+      const homeUrl = user?.role === 'qm' ? '/qm' : '/maker'
+      if (confirm('작성을 취소하시겠습니까?')) router.push(homeUrl)
       return
     }
     if (sessionId && step <= 3) {
@@ -126,10 +140,12 @@ export default function Wizard() {
     setStep(s => s - 1)
   }
 
+  const isQm = user.role === 'qm'
+
   return (
     <div className="min-h-screen bg-gray-100 pb-8">
       <AppHeader
-        roleLabel={`검사 작성 (${step}/${steps.length})`}
+        roleLabel={`${isQm ? 'FINAL 검사' : '검사 작성'} (${step}/${steps.length})`}
         subtitle={steps[step - 1]?.label}
         showBack
         onBack={handleBack}
@@ -189,7 +205,8 @@ export default function Wizard() {
           <Step1Block
             state={state}
             updateState={updateState}
-            makerName={user.maker || null}
+            makerName={isQm ? null : (user.maker || null)}
+            userRole={user.role}
             onNext={() => setStep(2)}
           />
         )}
@@ -197,7 +214,7 @@ export default function Wizard() {
           <Step2Zones
             state={state}
             updateState={updateState}
-            makerName={user.maker}
+            makerName={isQm ? '' : user.maker}
             userId={user.id}
             onSessionCreated={(id) => setSessionId(id)}
             onNext={() => setStep(3)}
