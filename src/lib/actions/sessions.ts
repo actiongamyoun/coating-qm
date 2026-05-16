@@ -89,7 +89,7 @@ export async function getSessionDetail(sessionId: string) {
 
   const { data: env } = await supabase
     .from('env_measurements')
-    .select('air_temp, surface_temp, humidity, dew_point, delta_t')
+    .select('air_temp, wet_bulb_temp, surface_temp, humidity, dew_point, delta_t')
     .eq('session_id', sessionId)
     .maybeSingle()
 
@@ -211,6 +211,7 @@ export async function getSessionDetail(sessionId: string) {
     env: env
       ? {
           air_temp: env.air_temp,
+          wet_bulb_temp: env.wet_bulb_temp,
           surface_temp: env.surface_temp,
           humidity: env.humidity,
           dew_point: env.dew_point,

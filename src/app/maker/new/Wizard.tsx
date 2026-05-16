@@ -21,9 +21,10 @@ export type WizardState = {
   inspected_at: string
   zone_ids: string[]
   zones_info: ZoneInfo[]
-  env_air_temp: string
-  env_surface_temp: string
-  env_humidity: string
+  env_air_temp: string       // 건구온도 (Dry Bulb)
+  env_wet_bulb_temp: string  // 습구온도 (Wet Bulb)
+  env_surface_temp: string   // 표면온도 (스틸온도)
+  env_humidity: string       // 상대습도 (자동 계산)
   batches: BatchInput[]
   measurements: MeasurementInput[]
 }
@@ -70,6 +71,7 @@ const initialState: WizardState = {
   zone_ids: [],
   zones_info: [],
   env_air_temp: '',
+  env_wet_bulb_temp: '',
   env_surface_temp: '',
   env_humidity: '',
   batches: [],
@@ -134,19 +136,17 @@ export default function Wizard() {
         showSettings={false}
       />
 
-      {/* 진척 바 */}
       <div className="bg-white px-2 py-3 border-b border-gray-200 flex items-center overflow-x-auto">
         {steps.map((s, i) => {
           const status = s.n < step ? 'done' : s.n === step ? 'active' : 'todo'
           const locked = sessionId !== null && s.n <= 2
 
-          // 색상 결정
-          let circleBg = '#d1d5db' // gray-300 (todo)
-          let circleText = '#ffffff'
+          let circleBg = '#d1d5db'
+          const circleText = '#ffffff'
           if (status === 'done') {
-            circleBg = locked ? '#9ca3af' : '#5ecbd6' // gray-400 or cyan
+            circleBg = locked ? '#9ca3af' : '#5ecbd6'
           } else if (status === 'active') {
-            circleBg = '#1a2332' // dark navy
+            circleBg = '#1a2332'
           }
 
           return (

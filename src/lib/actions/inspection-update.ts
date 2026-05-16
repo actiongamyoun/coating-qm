@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { calcEnvFromWetDry } from '@/lib/utils/psychrometric'
 
 // ============================================
 // 권한 체크
@@ -40,15 +41,15 @@ async function canEditSession(sessionId: string, userId: string) {
 }
 
 // ============================================
-// 환경 측정 수정
+// 환경 측정 수정 — 건구·습구·표면 입력
 // ============================================
 export async function updateEnvMeasurement(
   sessionId: string,
   userId: string,
   data: {
-    air_temp: string
-    surface_temp: string
-    humidity: string
+    air_temp: string       // 건구온도
+    wet_bulb_temp: string  // 습구온도
+    surface_temp: string   // 표면온도
   }
 ) {
   const perm = await canEditSession(sessionId, userId)
@@ -56,27 +57,28 @@ export async function updateEnvMeasurement(
 
   const supabase = await createClient()
 
-  const T = parseFloat(data.air_temp)
+  const Td = parseFloat(data.air_temp)
+  const Tw = parseFloat(data.wet_bulb_temp)
   const Ts = parseFloat(data.surface_temp)
-  const RH = parseFloat(data.humidity)
 
-  if (isNaN(T) || isNaN(Ts) || isNaN(RH)) {
+  if (isNaN(Td) || isNaN(Tw) || isNaN(Ts)) {
     return { success: false, error: '숫자 형식이 올바르지 않습니다' }
   }
+  if (Tw > Td) {
+    return { success: false, error: '습구온도는 건구온도보다 클 수 없습니다' }
+  }
 
-  // 이슬점 계산
-  const a = 17.27, b = 237.7
-  const alpha = (a * T) / (b + T) + Math.log(RH / 100)
-  const dewPoint = (b * alpha) / (a - alpha)
-  const deltaT = Ts - dewPoint
+  // 사이크로미터 계산
+  const calc = calcEnvFromWetDry(Td, Tw, Ts)
 
   const payload = {
     session_id: sessionId,
-    air_temp: T,
+    air_temp: Td,
+    wet_bulb_temp: Tw,
     surface_temp: Ts,
-    humidity: RH,
-    dew_point: dewPoint,
-    delta_t: deltaT,
+    humidity: calc.humidity,
+    dew_point: calc.dewPoint,
+    delta_t: calc.deltaT,
     last_modified_by: userId,
     last_modified_at: new Date().toISOString(),
   }

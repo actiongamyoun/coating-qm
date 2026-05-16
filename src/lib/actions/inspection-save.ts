@@ -1,10 +1,10 @@
 'use server'
 import { createClient } from '@/lib/supabase/server'
 import type { WizardState } from '@/app/maker/new/Wizard'
+import { calcEnvFromWetDry } from '@/lib/utils/psychrometric'
 
 /**
  * Step 2 완료 시 호출 — 세션 + session_zones만 생성
- * 환경/Batch/측정은 별도 단계에서 저장
  */
 export async function createInspectionSession(
   state: Pick<WizardState, 'ship_id' | 'block_id' | 'coat_order' | 'coat_label' | 'inspected_at' | 'zone_ids'>,
@@ -12,7 +12,6 @@ export async function createInspectionSession(
 ) {
   const supabase = await createClient()
   try {
-    // 1. 세션 생성
     const { data: session, error: sessionErr } = await supabase
       .from('inspection_sessions')
       .insert({
@@ -28,7 +27,6 @@ export async function createInspectionSession(
     if (sessionErr) throw sessionErr
     const sessionId = session.id
 
-    // 2. session_zones 저장
     if (state.zone_ids.length > 0) {
       const rows = state.zone_ids.map(zone_id => ({
         session_id: sessionId,
@@ -47,8 +45,35 @@ export async function createInspectionSession(
 }
 
 /**
- * 기존 함수 — Step 7에서 한꺼번에 저장 (패치 1에서는 session_id 없을 때만 사용)
- * 패치 2에서 각 Step이 자체 저장하게 되면 이 함수는 제거 예정
+ * 환경 측정 저장 헬퍼 — 건구·습구·표면으로부터 모든 값 계산 후 insert
+ */
+async function insertEnvMeasurement(
+  sessionId: string,
+  userId: string,
+  dryStr: string,
+  wetStr: string,
+  surfaceStr: string,
+) {
+  const Td = parseFloat(dryStr)
+  const Tw = parseFloat(wetStr)
+  const Ts = parseFloat(surfaceStr)
+  if (isNaN(Td) || isNaN(Tw) || isNaN(Ts)) return null
+
+  const calc = calcEnvFromWetDry(Td, Tw, Ts)
+  return {
+    session_id: sessionId,
+    air_temp: Td,           // 건구온도
+    wet_bulb_temp: Tw,      // 습구온도
+    surface_temp: Ts,       // 표면온도
+    humidity: calc.humidity,
+    dew_point: calc.dewPoint,
+    delta_t: calc.deltaT,
+    recorded_by: userId,
+  }
+}
+
+/**
+ * 기존 함수 — 한꺼번에 저장 (session_id 없을 때만 사용)
  */
 export async function saveInspection(state: WizardState, userId: string) {
   const supabase = await createClient()
@@ -77,23 +102,12 @@ export async function saveInspection(state: WizardState, userId: string) {
       if (error) throw error
     }
 
-    const T = parseFloat(state.env_air_temp)
-    const Ts = parseFloat(state.env_surface_temp)
-    const RH = parseFloat(state.env_humidity)
-    if (!isNaN(T) && !isNaN(Ts) && !isNaN(RH)) {
-      const a = 17.27, b = 237.7
-      const alpha = (a * T) / (b + T) + Math.log(RH / 100)
-      const dewPoint = (b * alpha) / (a - alpha)
-      const deltaT = Ts - dewPoint
-      const { error } = await supabase.from('env_measurements').insert({
-        session_id: sessionId,
-        air_temp: T,
-        surface_temp: Ts,
-        humidity: RH,
-        dew_point: dewPoint,
-        delta_t: deltaT,
-        recorded_by: userId,
-      })
+    const envRow = await insertEnvMeasurement(
+      sessionId, userId,
+      state.env_air_temp, state.env_wet_bulb_temp, state.env_surface_temp,
+    )
+    if (envRow) {
+      const { error } = await supabase.from('env_measurements').insert(envRow)
       if (error) throw error
     }
 
@@ -155,8 +169,7 @@ export async function saveInspection(state: WizardState, userId: string) {
 }
 
 /**
- * 기존에 만든 세션의 환경/Batch/측정만 저장 (이미 session_id 있을 때)
- * Step 7에서 호출
+ * 기존 세션에 환경/Batch/측정 데이터만 추가 (session_id 이미 있을 때)
  */
 export async function fillInspectionData(
   sessionId: string,
@@ -165,7 +178,6 @@ export async function fillInspectionData(
 ) {
   const supabase = await createClient()
   try {
-    // 환경 (이미 있으면 무시 — env_measurements는 session_id별 1개)
     const { data: existingEnv } = await supabase
       .from('env_measurements')
       .select('session_id')
@@ -173,28 +185,16 @@ export async function fillInspectionData(
       .maybeSingle()
 
     if (!existingEnv) {
-      const T = parseFloat(state.env_air_temp)
-      const Ts = parseFloat(state.env_surface_temp)
-      const RH = parseFloat(state.env_humidity)
-      if (!isNaN(T) && !isNaN(Ts) && !isNaN(RH)) {
-        const a = 17.27, b = 237.7
-        const alpha = (a * T) / (b + T) + Math.log(RH / 100)
-        const dewPoint = (b * alpha) / (a - alpha)
-        const deltaT = Ts - dewPoint
-        const { error } = await supabase.from('env_measurements').insert({
-          session_id: sessionId,
-          air_temp: T,
-          surface_temp: Ts,
-          humidity: RH,
-          dew_point: dewPoint,
-          delta_t: deltaT,
-          recorded_by: userId,
-        })
+      const envRow = await insertEnvMeasurement(
+        sessionId, userId,
+        state.env_air_temp, state.env_wet_bulb_temp, state.env_surface_temp,
+      )
+      if (envRow) {
+        const { error } = await supabase.from('env_measurements').insert(envRow)
         if (error) throw error
       }
     }
 
-    // Batch (도료별로 이미 있으면 건너뜀)
     const validBatches = state.batches.filter(b =>
       b.base_no.trim() || b.hardener_no.trim()
     )
@@ -217,7 +217,6 @@ export async function fillInspectionData(
       }
     }
 
-    // 측정 (zone별 이미 있으면 건너뜀)
     const isFirst = state.coat_order === 1
     if (isFirst) {
       const validRows = state.measurements.filter(m =>

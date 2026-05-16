@@ -10,6 +10,7 @@ import {
   updateSurfaceMeasurement,
   updateDftMeasurement,
 } from '@/lib/actions/inspection-update'
+import { calcEnvFromWetDry } from '@/lib/utils/psychrometric'
 import AppHeader from '@/components/AppHeader'
 
 type Zone = {
@@ -62,7 +63,8 @@ type Detail = {
   recorder_role: string
   recorder_maker: string
   env: {
-    air_temp: number | null
+    air_temp: number | null         // 건구
+    wet_bulb_temp: number | null    // 습구 (새 필드, 기존 데이터엔 null)
     surface_temp: number | null
     humidity: number | null
     dew_point: number | null
@@ -175,7 +177,7 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
       />
 
       <div className="max-w-md mx-auto p-4 space-y-3">
-        {/* 요약 (수정 불가) */}
+        {/* 요약 */}
         <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="font-black text-sm text-[#1a2332] mb-3 flex items-center gap-1">
             <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>summarize</span>
@@ -225,12 +227,38 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
               }}
             />
           ) : detail.env ? (
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <EnvCell label="대기" value={fmt(detail.env.air_temp, '℃')} />
-              <EnvCell label="표면" value={fmt(detail.env.surface_temp, '℃')} />
-              <EnvCell label="습도" value={fmt(detail.env.humidity, '%')} />
-              <EnvCell label="이슬점" value={fmt(detail.env.dew_point, '℃')} />
-              <EnvCell label="표면-이슬점" value={fmt(detail.env.delta_t, '℃')} />
+            <div className="space-y-2">
+              {/* 입력값 */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <EnvCell label="건구" value={fmt(detail.env.air_temp, '℃')} />
+                <EnvCell label="습구" value={fmt(detail.env.wet_bulb_temp, '℃')} />
+                <EnvCell label="표면" value={fmt(detail.env.surface_temp, '℃')} />
+              </div>
+              {/* 계산값 */}
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <EnvCell label="상대습도" value={fmt(detail.env.humidity, '%')} muted />
+                <EnvCell label="이슬점" value={fmt(detail.env.dew_point, '℃')} muted />
+                <EnvCell label="표면-이슬점" value={fmt(detail.env.delta_t, '℃')} muted />
+              </div>
+              {/* 합격 여부 */}
+              <div className="flex gap-2 pt-2 border-t border-gray-200 text-[10px] font-black">
+                {detail.env.humidity !== null && (
+                  <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full ${
+                    detail.env.humidity <= 85 ? 'bg-success-light text-success' : 'bg-danger-light text-danger'
+                  }`}>
+                    <span className="material-icons text-[12px]">{detail.env.humidity <= 85 ? 'check' : 'close'}</span>
+                    습도 ≤85%
+                  </span>
+                )}
+                {detail.env.delta_t !== null && (
+                  <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full ${
+                    detail.env.delta_t >= 3 ? 'bg-success-light text-success' : 'bg-danger-light text-danger'
+                  }`}>
+                    <span className="material-icons text-[12px]">{detail.env.delta_t >= 3 ? 'check' : 'close'}</span>
+                    Δt ≥3℃
+                  </span>
+                )}
+              </div>
             </div>
           ) : (
             <div className="text-center text-sm text-gray-500 py-3 font-bold">미입력</div>
@@ -488,7 +516,7 @@ function EditButton({ onClick, small }: { onClick: () => void; small?: boolean }
 }
 
 // ============================================
-// 환경 측정 편집 폼
+// 환경 측정 편집 폼 — 건구·습구·표면 입력
 // ============================================
 function EnvEdit({
   initial, sessionId, userId, onCancel, onSave,
@@ -499,23 +527,34 @@ function EnvEdit({
   onCancel: () => void
   onSave: () => void
 }) {
-  const [airTemp, setAirTemp] = useState(initial?.air_temp?.toString() || '')
-  const [surfaceTemp, setSurfaceTemp] = useState(initial?.surface_temp?.toString() || '')
-  const [humidity, setHumidity] = useState(initial?.humidity?.toString() || '')
+  const [dry, setDry] = useState(initial?.air_temp?.toString() || '')
+  const [wet, setWet] = useState(initial?.wet_bulb_temp?.toString() || '')
+  const [surface, setSurface] = useState(initial?.surface_temp?.toString() || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const Td = parseFloat(dry)
+  const Tw = parseFloat(wet)
+  const Ts = parseFloat(surface)
+  const valid = !isNaN(Td) && !isNaN(Tw) && !isNaN(Ts)
+  const wetGtDry = !isNaN(Td) && !isNaN(Tw) && Tw > Td
+  const calc = valid && !wetGtDry ? calcEnvFromWetDry(Td, Tw, Ts) : null
+
   async function handleSave() {
     setError('')
-    if (!airTemp || !surfaceTemp || !humidity) {
+    if (!dry || !wet || !surface) {
       setError('모든 값을 입력하세요')
+      return
+    }
+    if (wetGtDry) {
+      setError('습구온도는 건구온도보다 클 수 없습니다')
       return
     }
     setSaving(true)
     const res = await updateEnvMeasurement(sessionId, userId, {
-      air_temp: airTemp,
-      surface_temp: surfaceTemp,
-      humidity,
+      air_temp: dry,
+      wet_bulb_temp: wet,
+      surface_temp: surface,
     })
     setSaving(false)
     if (res.success) onSave()
@@ -525,10 +564,33 @@ function EnvEdit({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-2">
-        <NumInput label="대기 (℃)" value={airTemp} onChange={setAirTemp} />
-        <NumInput label="표면 (℃)" value={surfaceTemp} onChange={setSurfaceTemp} />
-        <NumInput label="습도 (%)" value={humidity} onChange={setHumidity} />
+        <NumInput label="건구 (℃)" value={dry} onChange={setDry} />
+        <NumInput label="습구 (℃)" value={wet} onChange={setWet} />
+        <NumInput label="표면 (℃)" value={surface} onChange={setSurface} />
       </div>
+
+      {/* 자동 계산 미리보기 */}
+      {calc && (
+        <div className="bg-gray-50 border border-dashed border-gray-300 rounded p-2 text-xs font-bold space-y-1">
+          <div className="flex justify-between">
+            <span className="text-gray-700">상대습도</span>
+            <span className={calc.humidityOk ? 'text-success' : 'text-danger'}>
+              {calc.humidity.toFixed(1)}% {calc.humidityOk ? '✓' : '✗'} ≤85%
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-700">이슬점</span>
+            <span className="text-[#1a2332]">{calc.dewPoint.toFixed(1)}℃</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-700">표면−이슬점</span>
+            <span className={calc.deltaTOk ? 'text-success' : 'text-danger'}>
+              {calc.deltaT.toFixed(1)}℃ {calc.deltaTOk ? '✓' : '✗'} ≥3℃
+            </span>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="bg-danger-light text-danger px-2 py-1.5 rounded text-xs font-bold">
           {error}
@@ -599,7 +661,7 @@ function BatchEdit({
 }
 
 // ============================================
-// 구역 카드 (편집 가능)
+// 구역 카드
 // ============================================
 function ZoneCard({
   zone, isFirst, canEdit, isEditing, onEditClick, onCancel, onSave, sessionId, userId,
@@ -898,11 +960,16 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
   )
 }
 
-function EnvCell({ label, value }: { label: string; value: string }) {
+function EnvCell({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="bg-gray-50 rounded-lg p-2">
+    <div
+      className="rounded-lg p-2"
+      style={{ background: muted ? '#f3f4f6' : '#f9fafb' }}
+    >
       <div className="text-[10px] text-gray-700 font-bold">{label}</div>
-      <div className="text-base font-black mt-0.5 text-[#1a2332]">{value}</div>
+      <div className={`text-base font-black mt-0.5 ${muted ? 'text-gray-700' : 'text-[#1a2332]'}`}>
+        {value}
+      </div>
     </div>
   )
 }
