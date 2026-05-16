@@ -10,6 +10,7 @@ import {
   updateSurfaceMeasurement,
   updateDftMeasurement,
 } from '@/lib/actions/inspection-update'
+import AppHeader from '@/components/AppHeader'
 
 type Zone = {
   zone_id: string
@@ -88,10 +89,9 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
   const [uploading, setUploading] = useState(false)
   const [mounted, setMounted] = useState(false)
 
-  // 편집 상태
   const [editingEnv, setEditingEnv] = useState(false)
-  const [editingBatch, setEditingBatch] = useState<string | null>(null) // paint_name
-  const [editingZone, setEditingZone] = useState<string | null>(null) // zone_id
+  const [editingBatch, setEditingBatch] = useState<string | null>(null)
+  const [editingZone, setEditingZone] = useState<string | null>(null)
 
   const testInputRef = useRef<HTMLInputElement>(null)
   const otherInputRef = useRef<HTMLInputElement>(null)
@@ -102,9 +102,6 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
     setMounted(true)
   }, [])
 
-  // 권한 체크 (편집 버튼 표시 여부)
-  // - QM/admin: 모든 검사 수정 가능
-  // - maker: 본인이 입력한 검사만 (서버에서 최종 검증)
   const canEdit = !!userId && (userRole === 'qm' || userRole === 'admin' || userRole === 'maker')
 
   const envMissing = !detail.env
@@ -169,23 +166,20 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
 
   return (
     <div className="min-h-screen bg-gray-100 pb-8">
-      <div className="sticky top-0 z-20 bg-gray-900 text-white px-4 py-3 flex items-center gap-3 shadow-md">
-        <button onClick={() => router.back()} className="text-white">
-          <span className="material-icons">arrow_back</span>
-        </button>
-        <div className="flex-1">
-          <div className="text-xs opacity-70 font-bold">검사 상세</div>
-          <div className="text-sm font-black">
-            {detail.block_code} · {detail.coat_label}
-          </div>
-        </div>
-      </div>
+      <AppHeader
+        roleLabel="검사 상세"
+        shipName={detail.ship_name}
+        subtitle={`${detail.block_code} · ${detail.coat_label}`}
+        showBack
+        showSettings={false}
+      />
 
       <div className="max-w-md mx-auto p-4 space-y-3">
         {/* 요약 (수정 불가) */}
         <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <div className="font-black text-sm text-gray-700 mb-3 flex items-center gap-1">
-            <span className="material-icons text-base text-primary">summarize</span>요약
+          <div className="font-black text-sm text-[#1a2332] mb-3 flex items-center gap-1">
+            <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>summarize</span>
+            요약
           </div>
           <Row label="호선" value={`${detail.ship_name}${detail.ship_type ? ` · ${detail.ship_type}` : ''}`} />
           <Row label="블록 / 회차" value={`${detail.block_code} / ${detail.coat_label}`} />
@@ -202,21 +196,19 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
         </div>
 
         {/* 환경 */}
-        <div className={`bg-white border-2 rounded-xl p-4 ${envMissing ? 'border-danger' : 'border-paint'}`}>
+        <div
+          className="bg-white border-2 rounded-xl p-4"
+          style={{ borderColor: envMissing ? '#dc2626' : '#5ecbd6' }}
+        >
           <div className="flex justify-between items-center mb-3">
-            <div className="font-black text-sm flex items-center gap-1">
-              <span className="material-icons text-base text-paint">thermostat</span>환경 측정
+            <div className="font-black text-sm flex items-center gap-1 text-[#1a2332]">
+              <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>thermostat</span>
+              환경 측정
             </div>
             <div className="flex items-center gap-2">
               {envMissing && !editingEnv && <MissingBadge />}
               {mounted && canEdit && !editingEnv && (
-                <button
-                  onClick={() => setEditingEnv(true)}
-                  className="bg-paint-light text-paint px-2 py-1 rounded-full text-[11px] font-black flex items-center gap-0.5 hover:bg-paint hover:text-white transition-colors"
-                >
-                  <span className="material-icons text-[14px]">edit</span>
-                  수정
-                </button>
+                <EditButton onClick={() => setEditingEnv(true)} />
               )}
             </div>
           </div>
@@ -247,10 +239,14 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
 
         {/* Batch */}
         {!isFinal && (
-          <div className={`bg-white border-2 rounded-xl p-4 ${batchMissing ? 'border-danger' : 'border-paint'}`}>
+          <div
+            className="bg-white border-2 rounded-xl p-4"
+            style={{ borderColor: batchMissing ? '#dc2626' : '#5ecbd6' }}
+          >
             <div className="flex justify-between items-center mb-3">
-              <div className="font-black text-sm flex items-center gap-1">
-                <span className="material-icons text-base text-paint">format_paint</span>Batch No.
+              <div className="font-black text-sm flex items-center gap-1 text-[#1a2332]">
+                <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>format_paint</span>
+                Batch No.
               </div>
               {batchMissing && <MissingBadge />}
             </div>
@@ -267,15 +263,9 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
               detail.batches.map((b, i) => (
                 <div key={i} className="py-2 border-b border-gray-200 last:border-0">
                   <div className="flex justify-between items-center mb-1">
-                    <div className="font-black text-sm text-paint">{b.paint_name}</div>
+                    <div className="font-black text-sm" style={{ color: '#0891a3' }}>{b.paint_name}</div>
                     {mounted && canEdit && editingBatch !== b.paint_name && (
-                      <button
-                        onClick={() => setEditingBatch(b.paint_name)}
-                        className="bg-paint-light text-paint px-2 py-0.5 rounded-full text-[11px] font-black flex items-center gap-0.5 hover:bg-paint hover:text-white transition-colors"
-                      >
-                        <span className="material-icons text-[14px]">edit</span>
-                        수정
-                      </button>
+                      <EditButton onClick={() => setEditingBatch(b.paint_name)} small />
                     )}
                   </div>
                   {editingBatch === b.paint_name ? (
@@ -291,7 +281,7 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
                       }}
                     />
                   ) : (
-                    <div className="text-xs mt-1 grid grid-cols-2 gap-2 font-bold">
+                    <div className="text-xs mt-1 grid grid-cols-2 gap-2 font-bold text-[#1a2332]">
                       <span>주제 · <strong>{b.base_no || '미입력'}</strong></span>
                       <span>경화제 · <strong>{b.hardener_no || '미입력'}</strong></span>
                     </div>
@@ -303,10 +293,13 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
         )}
 
         {/* 측정 */}
-        <div className={`bg-white border-2 rounded-xl p-4 ${measureMissing > 0 ? 'border-danger' : 'border-primary'}`}>
+        <div
+          className="bg-white border-2 rounded-xl p-4"
+          style={{ borderColor: measureMissing > 0 ? '#dc2626' : '#5ecbd6' }}
+        >
           <div className="flex justify-between items-center mb-3">
-            <div className="font-black text-sm flex items-center gap-1">
-              <span className="material-icons text-base text-primary">
+            <div className="font-black text-sm flex items-center gap-1 text-[#1a2332]">
+              <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>
                 {isFirst ? 'science' : 'straighten'}
               </span>
               {isFirst ? '표면 측정 (1ST)' : 'DFT 측정'}
@@ -340,10 +333,10 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
         </div>
 
         {/* 사진 갤러리 */}
-        <div className="bg-white border-2 border-primary rounded-xl p-4">
+        <div className="bg-white border-2 rounded-xl p-4" style={{ borderColor: '#5ecbd6' }}>
           <div className="flex justify-between items-center mb-3">
-            <div className="font-black text-sm flex items-center gap-1">
-              <span className="material-icons text-base text-primary">photo_library</span>
+            <div className="font-black text-sm flex items-center gap-1 text-[#1a2332]">
+              <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>photo_library</span>
               사진 ({photos.length})
             </div>
             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
@@ -355,7 +348,7 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
 
           {/* 테스트 사진 */}
           <div className="mb-4">
-            <div className="text-xs font-black text-gray-700 mb-2 flex items-center gap-1">
+            <div className="text-xs font-black text-[#1a2332] mb-2 flex items-center gap-1">
               <span className="material-icons text-sm text-danger">science</span>
               테스트 사진 (필수)
             </div>
@@ -391,8 +384,8 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
 
           {/* 기타 사진 */}
           <div>
-            <div className="text-xs font-black text-gray-700 mb-2 flex items-center gap-1">
-              <span className="material-icons text-sm text-primary">photo_library</span>
+            <div className="text-xs font-black text-[#1a2332] mb-2 flex items-center gap-1">
+              <span className="material-icons text-sm" style={{ color: '#5ecbd6' }}>photo_library</span>
               추가 사진
             </div>
             <div className="grid grid-cols-3 gap-2">
@@ -408,7 +401,7 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
                 <button
                   onClick={() => otherInputRef.current?.click()}
                   disabled={uploading}
-                  className="aspect-square border-2 border-dashed border-gray-300 bg-gray-50 rounded-lg flex flex-col items-center justify-center text-gray-500 font-black text-[10px] gap-1 disabled:opacity-50"
+                  className="aspect-square border-2 border-dashed border-gray-300 bg-gray-50 rounded-lg flex flex-col items-center justify-center text-gray-500 font-black text-[10px] gap-1 disabled:opacity-50 hover:border-[#5ecbd6] transition-colors"
                 >
                   <span className="material-icons text-2xl">add_a_photo</span>
                   추가
@@ -426,7 +419,7 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
           </div>
 
           {uploading && (
-            <div className="text-xs text-primary font-bold mt-3 flex items-center gap-1">
+            <div className="text-xs font-bold mt-3 flex items-center gap-1" style={{ color: '#0891a3' }}>
               <span className="material-icons text-base animate-spin">refresh</span>
               업로드 중...
             </div>
@@ -470,6 +463,27 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
         </div>
       )}
     </div>
+  )
+}
+
+// ============================================
+// 수정 버튼 (공통)
+// ============================================
+function EditButton({ onClick, small }: { onClick: () => void; small?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`rounded-full font-black flex items-center gap-0.5 transition-colors hover:bg-[#1a2332] hover:text-white ${
+        small ? 'px-2 py-0.5 text-[11px]' : 'px-2 py-1 text-[11px]'
+      }`}
+      style={{
+        background: 'rgba(94, 203, 214, 0.15)',
+        color: '#0891a3',
+      }}
+    >
+      <span className="material-icons text-[14px]">edit</span>
+      수정
+    </button>
   )
 }
 
@@ -527,13 +541,7 @@ function EnvEdit({
         >
           취소
         </button>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex-1 py-2 bg-paint text-white rounded-lg text-sm font-black disabled:opacity-50"
-        >
-          {saving ? '저장 중...' : '저장'}
-        </button>
+        <SaveButton onClick={handleSave} saving={saving} />
       </div>
     </div>
   )
@@ -584,9 +592,7 @@ function BatchEdit({
         <button onClick={onCancel} className="flex-1 py-1.5 border-2 border-gray-300 text-gray-700 rounded-lg text-xs font-black">
           취소
         </button>
-        <button onClick={handleSave} disabled={saving} className="flex-1 py-1.5 bg-paint text-white rounded-lg text-xs font-black disabled:opacity-50">
-          {saving ? '저장 중...' : '저장'}
-        </button>
+        <SaveButton onClick={handleSave} saving={saving} small />
       </div>
     </div>
   )
@@ -609,9 +615,16 @@ function ZoneCard({
   userId: string
 }) {
   return (
-    <div className={`border rounded-lg p-3 ${zone.is_pspc ? 'border-pink-200 bg-pink-50/30' : 'border-gray-200 bg-white'}`}>
+    <div
+      className="border rounded-lg p-3"
+      style={
+        zone.is_pspc
+          ? { borderColor: '#fbcfe8', background: 'rgba(253, 242, 248, 0.5)' }
+          : { borderColor: '#e5e7eb', background: '#ffffff' }
+      }
+    >
       <div className="flex justify-between items-start mb-2">
-        <div className="font-black text-sm flex items-center gap-1 flex-1">
+        <div className="font-black text-sm flex items-center gap-1 flex-1 text-[#1a2332]">
           {zone.is_pspc && <span className="material-icons text-base text-pink-700">lock</span>}
           {zone.zone_name}
           {zone.is_pspc && (
@@ -622,18 +635,12 @@ function ZoneCard({
         </div>
         <div className="flex items-center gap-2">
           {zone.dft_target !== null && !isFirst && (
-            <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded">
+            <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded text-[#1a2332]">
               목표 {zone.dft_target}㎛
             </span>
           )}
           {canEdit && !isEditing && (
-            <button
-              onClick={onEditClick}
-              className="bg-primary-light text-primary-dark px-2 py-1 rounded-full text-[11px] font-black flex items-center gap-0.5 hover:bg-primary hover:text-white transition-colors"
-            >
-              <span className="material-icons text-[14px]">edit</span>
-              수정
-            </button>
+            <EditButton onClick={onEditClick} />
           )}
         </div>
       </div>
@@ -731,9 +738,7 @@ function SurfaceEdit({
         <button onClick={onCancel} className="flex-1 py-1.5 border-2 border-gray-300 text-gray-700 rounded text-xs font-black">
           취소
         </button>
-        <button onClick={handleSave} disabled={saving} className="flex-1 py-1.5 bg-primary text-white rounded text-xs font-black disabled:opacity-50">
-          {saving ? '저장 중...' : '저장'}
-        </button>
+        <SaveButton onClick={handleSave} saving={saving} small />
       </div>
     </div>
   )
@@ -785,9 +790,7 @@ function DftEdit({
         <button onClick={onCancel} className="flex-1 py-1.5 border-2 border-gray-300 text-gray-700 rounded text-xs font-black">
           취소
         </button>
-        <button onClick={handleSave} disabled={saving} className="flex-1 py-1.5 bg-primary text-white rounded text-xs font-black disabled:opacity-50">
-          {saving ? '저장 중...' : '저장'}
-        </button>
+        <SaveButton onClick={handleSave} saving={saving} small />
       </div>
     </div>
   )
@@ -796,6 +799,23 @@ function DftEdit({
 // ============================================
 // 공통 입력 컴포넌트
 // ============================================
+function SaveButton({ onClick, saving, small }: { onClick: () => void; saving: boolean; small?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={saving}
+      className={`flex-1 text-white rounded-lg font-black disabled:opacity-50 transition-all hover:-translate-y-px ${
+        small ? 'py-1.5 text-xs' : 'py-2 text-sm'
+      }`}
+      style={{
+        background: 'linear-gradient(135deg, #1a2332 0%, #243144 100%)',
+      }}
+    >
+      {saving ? '저장 중...' : '저장'}
+    </button>
+  )
+}
+
 function NumInput({
   label, value, onChange, small,
 }: {
@@ -812,7 +832,7 @@ function NumInput({
         step="0.1"
         value={value}
         onChange={e => onChange(e.target.value)}
-        className={`w-full bg-white border border-gray-300 rounded px-1 py-1 text-center font-black ${
+        className={`w-full bg-white border border-gray-300 rounded px-1 py-1 text-center font-black focus:border-[#5ecbd6] focus:outline-none ${
           small ? 'text-xs' : 'text-base'
         }`}
       />
@@ -836,7 +856,7 @@ function TxtInput({
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full bg-white border border-gray-300 rounded px-2 py-1.5 text-xs font-bold"
+        className="w-full bg-white border border-gray-300 rounded px-2 py-1.5 text-xs font-bold focus:border-[#5ecbd6] focus:outline-none"
       />
     </div>
   )
@@ -873,7 +893,7 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
   return (
     <div className={`flex justify-between py-2 ${last ? '' : 'border-b border-gray-200'} text-sm`}>
       <span className="text-gray-700 font-bold">{label}</span>
-      <span className="font-black text-right">{value}</span>
+      <span className="font-black text-right text-[#1a2332]">{value}</span>
     </div>
   )
 }
@@ -882,7 +902,7 @@ function EnvCell({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-gray-50 rounded-lg p-2">
       <div className="text-[10px] text-gray-700 font-bold">{label}</div>
-      <div className="text-base font-black mt-0.5">{value}</div>
+      <div className="text-base font-black mt-0.5 text-[#1a2332]">{value}</div>
     </div>
   )
 }
@@ -896,9 +916,19 @@ function SmallCell({
   highlight?: boolean
 }) {
   return (
-    <div className={`rounded p-1.5 ${highlight ? 'bg-primary-light' : 'bg-gray-50'}`}>
+    <div
+      className="rounded p-1.5"
+      style={
+        highlight
+          ? { background: 'rgba(94, 203, 214, 0.15)' }
+          : { background: '#f9fafb' }
+      }
+    >
       <div className="text-[9px] text-gray-700 font-bold">{label}</div>
-      <div className={`text-sm font-black ${highlight ? 'text-primary-dark' : ''}`}>
+      <div
+        className="text-sm font-black"
+        style={highlight ? { color: '#0891a3' } : { color: '#1a2332' }}
+      >
         {value}
       </div>
       {unit && <div className="text-[9px] text-gray-500">{unit}</div>}
