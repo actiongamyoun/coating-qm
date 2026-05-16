@@ -11,6 +11,7 @@ import {
   updateDftMeasurement,
 } from '@/lib/actions/inspection-update'
 import { calcEnvFromWetDry } from '@/lib/utils/psychrometric'
+import { calcMinMeasurementPoints } from '@/lib/utils/measurement'
 import AppHeader from '@/components/AppHeader'
 
 type Zone = {
@@ -63,8 +64,8 @@ type Detail = {
   recorder_role: string
   recorder_maker: string
   env: {
-    air_temp: number | null         // 건구
-    wet_bulb_temp: number | null    // 습구 (새 필드, 기존 데이터엔 null)
+    air_temp: number | null
+    wet_bulb_temp: number | null
     surface_temp: number | null
     humidity: number | null
     dew_point: number | null
@@ -169,7 +170,7 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
   return (
     <div className="min-h-screen bg-gray-100 pb-8">
       <AppHeader
-        roleLabel="검사 상세"
+        roleLabel={isFinal ? 'FINAL 검사' : '검사 상세'}
         shipName={detail.ship_name}
         subtitle={`${detail.block_code} · ${detail.coat_label}`}
         showBack
@@ -228,19 +229,16 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
             />
           ) : detail.env ? (
             <div className="space-y-2">
-              {/* 입력값 */}
               <div className="grid grid-cols-3 gap-2 text-center">
                 <EnvCell label="건구" value={fmt(detail.env.air_temp, '℃')} />
                 <EnvCell label="습구" value={fmt(detail.env.wet_bulb_temp, '℃')} />
                 <EnvCell label="표면" value={fmt(detail.env.surface_temp, '℃')} />
               </div>
-              {/* 계산값 */}
               <div className="grid grid-cols-3 gap-2 text-center">
                 <EnvCell label="상대습도" value={fmt(detail.env.humidity, '%')} muted />
                 <EnvCell label="이슬점" value={fmt(detail.env.dew_point, '℃')} muted />
                 <EnvCell label="표면-이슬점" value={fmt(detail.env.delta_t, '℃')} muted />
               </div>
-              {/* 합격 여부 */}
               <div className="flex gap-2 pt-2 border-t border-gray-200 text-[10px] font-black">
                 {detail.env.humidity !== null && (
                   <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full ${
@@ -328,9 +326,9 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
           <div className="flex justify-between items-center mb-3">
             <div className="font-black text-sm flex items-center gap-1 text-[#1a2332]">
               <span className="material-icons text-base" style={{ color: '#5ecbd6' }}>
-                {isFirst ? 'science' : 'straighten'}
+                {isFirst ? 'science' : isFinal ? 'flag' : 'straighten'}
               </span>
-              {isFirst ? '표면 측정 (1ST)' : 'DFT 측정'}
+              {isFirst ? '표면 측정 (1ST)' : isFinal ? 'FINAL DFT 측정 (CTF)' : 'DFT 측정'}
             </div>
             {measureMissing > 0 && <MissingBadge text={`${measureMissing}건 미입력`} />}
           </div>
@@ -344,6 +342,7 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
                   key={z.zone_id}
                   zone={z}
                   isFirst={isFirst}
+                  isFinal={isFinal}
                   canEdit={mounted && canEdit}
                   isEditing={editingZone === z.zone_id}
                   onEditClick={() => setEditingZone(z.zone_id)}
@@ -374,7 +373,6 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
             </span>
           </div>
 
-          {/* 테스트 사진 */}
           <div className="mb-4">
             <div className="text-xs font-black text-[#1a2332] mb-2 flex items-center gap-1">
               <span className="material-icons text-sm text-danger">science</span>
@@ -410,7 +408,6 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
             />
           </div>
 
-          {/* 기타 사진 */}
           <div>
             <div className="text-xs font-black text-[#1a2332] mb-2 flex items-center gap-1">
               <span className="material-icons text-sm" style={{ color: '#5ecbd6' }}>photo_library</span>
@@ -464,7 +461,6 @@ export default function SessionDetail({ detail }: { detail: Detail }) {
         )}
       </div>
 
-      {/* Lightbox */}
       {lightbox && (
         <div
           className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
@@ -516,7 +512,7 @@ function EditButton({ onClick, small }: { onClick: () => void; small?: boolean }
 }
 
 // ============================================
-// 환경 측정 편집 폼 — 건구·습구·표면 입력
+// 환경 측정 편집 폼
 // ============================================
 function EnvEdit({
   initial, sessionId, userId, onCancel, onSave,
@@ -569,7 +565,6 @@ function EnvEdit({
         <NumInput label="표면 (℃)" value={surface} onChange={setSurface} />
       </div>
 
-      {/* 자동 계산 미리보기 */}
       {calc && (
         <div className="bg-gray-50 border border-dashed border-gray-300 rounded p-2 text-xs font-bold space-y-1">
           <div className="flex justify-between">
@@ -664,10 +659,11 @@ function BatchEdit({
 // 구역 카드
 // ============================================
 function ZoneCard({
-  zone, isFirst, canEdit, isEditing, onEditClick, onCancel, onSave, sessionId, userId,
+  zone, isFirst, isFinal, canEdit, isEditing, onEditClick, onCancel, onSave, sessionId, userId,
 }: {
   zone: Zone
   isFirst: boolean
+  isFinal: boolean
   canEdit: boolean
   isEditing: boolean
   onEditClick: () => void
@@ -676,6 +672,14 @@ function ZoneCard({
   sessionId: string
   userId: string
 }) {
+  const minPoints = isFinal ? calcMinMeasurementPoints(zone.area_total) : null
+  const countInsufficient =
+    isFinal &&
+    minPoints !== null &&
+    zone.dft?.count !== null &&
+    zone.dft?.count !== undefined &&
+    zone.dft.count < minPoints
+
   return (
     <div
       className="border rounded-lg p-3"
@@ -695,10 +699,23 @@ function ZoneCard({
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 flex-wrap justify-end">
           {zone.dft_target !== null && !isFirst && (
             <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded text-[#1a2332]">
               목표 {zone.dft_target}㎛
+            </span>
+          )}
+          {isFinal && minPoints !== null && (
+            <span
+              className="text-xs font-black px-2 py-1 rounded flex items-center gap-0.5"
+              style={{
+                background: 'rgba(94, 203, 214, 0.15)',
+                color: '#0891a3',
+              }}
+              title={`면적 ${zone.area_total}㎡ × 1 point/㎡`}
+            >
+              <span className="material-icons text-[12px]">grid_on</span>
+              최소 {minPoints}회
             </span>
           )}
           {canEdit && !isEditing && (
@@ -727,6 +744,7 @@ function ZoneCard({
             userId={userId}
             onCancel={onCancel}
             onSave={onSave}
+            minPoints={minPoints}
           />
         )
       ) : isFirst ? (
@@ -741,12 +759,24 @@ function ZoneCard({
           <div className="text-center text-xs text-danger font-bold py-2">측정 미입력</div>
         )
       ) : zone.dft ? (
-        <div className="grid grid-cols-4 gap-1 text-center">
-          <SmallCell label="평균" value={fmt(zone.dft.avg, '')} unit="㎛" highlight />
-          <SmallCell label="최소" value={fmt(zone.dft.min, '')} unit="㎛" />
-          <SmallCell label="최대" value={fmt(zone.dft.max, '')} unit="㎛" />
-          <SmallCell label="횟수" value={zone.dft.count?.toString() || '—'} />
-        </div>
+        <>
+          <div className="grid grid-cols-4 gap-1 text-center">
+            <SmallCell label="평균" value={fmt(zone.dft.avg, '')} unit="㎛" highlight />
+            <SmallCell label="최소" value={fmt(zone.dft.min, '')} unit="㎛" />
+            <SmallCell label="최대" value={fmt(zone.dft.max, '')} unit="㎛" />
+            <SmallCell
+              label="횟수"
+              value={zone.dft.count?.toString() || '—'}
+              warning={countInsufficient}
+            />
+          </div>
+          {countInsufficient && (
+            <div className="mt-2 text-[11px] text-danger font-black flex items-center gap-1">
+              <span className="material-icons text-[14px]">warning</span>
+              측정 횟수가 최소 포인트({minPoints}회) 미만입니다
+            </div>
+          )}
+        </>
       ) : (
         <div className="text-center text-xs text-danger font-bold py-2">측정 미입력</div>
       )}
@@ -810,7 +840,7 @@ function SurfaceEdit({
 // DFT 측정 편집 폼
 // ============================================
 function DftEdit({
-  zoneId, initial, sessionId, userId, onCancel, onSave,
+  zoneId, initial, sessionId, userId, onCancel, onSave, minPoints,
 }: {
   zoneId: string
   initial: Zone['dft']
@@ -818,6 +848,7 @@ function DftEdit({
   userId: string
   onCancel: () => void
   onSave: () => void
+  minPoints: number | null
 }) {
   const [avg, setAvg] = useState(initial?.avg?.toString() || '')
   const [min, setMin] = useState(initial?.min?.toString() || '')
@@ -825,6 +856,9 @@ function DftEdit({
   const [count, setCount] = useState(initial?.count?.toString() || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  const countNum = count ? Number(count) : null
+  const insufficient = minPoints !== null && countNum !== null && countNum < minPoints
 
   async function handleSave() {
     setError('')
@@ -843,8 +877,14 @@ function DftEdit({
         <NumInput label="평균" value={avg} onChange={setAvg} small />
         <NumInput label="최소" value={min} onChange={setMin} small />
         <NumInput label="최대" value={max} onChange={setMax} small />
-        <NumInput label="횟수" value={count} onChange={setCount} small />
+        <NumInput label="횟수" value={count} onChange={setCount} small warning={insufficient} />
       </div>
+      {insufficient && (
+        <div className="text-[10px] text-danger font-black flex items-center gap-0.5">
+          <span className="material-icons text-[12px]">warning</span>
+          최소 {minPoints}회 필요
+        </div>
+      )}
       {error && (
         <div className="bg-danger-light text-danger px-2 py-1 rounded text-[10px] font-bold">{error}</div>
       )}
@@ -879,12 +919,13 @@ function SaveButton({ onClick, saving, small }: { onClick: () => void; saving: b
 }
 
 function NumInput({
-  label, value, onChange, small,
+  label, value, onChange, small, warning,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   small?: boolean
+  warning?: boolean
 }) {
   return (
     <div>
@@ -894,9 +935,13 @@ function NumInput({
         step="0.1"
         value={value}
         onChange={e => onChange(e.target.value)}
-        className={`w-full bg-white border border-gray-300 rounded px-1 py-1 text-center font-black focus:border-[#5ecbd6] focus:outline-none ${
+        className={`w-full border rounded px-1 py-1 text-center font-black focus:outline-none ${
           small ? 'text-xs' : 'text-base'
         }`}
+        style={{
+          borderColor: warning ? '#dc2626' : '#d1d5db',
+          background: warning ? '#fef2f2' : '#ffffff',
+        }}
       />
     </div>
   )
@@ -975,27 +1020,28 @@ function EnvCell({ label, value, muted }: { label: string; value: string; muted?
 }
 
 function SmallCell({
-  label, value, unit, highlight,
+  label, value, unit, highlight, warning,
 }: {
   label: string
   value: string
   unit?: string
   highlight?: boolean
+  warning?: boolean
 }) {
+  let bg = '#f9fafb'
+  let color = '#1a2332'
+  if (warning) {
+    bg = '#fef2f2'
+    color = '#dc2626'
+  } else if (highlight) {
+    bg = 'rgba(94, 203, 214, 0.15)'
+    color = '#0891a3'
+  }
+
   return (
-    <div
-      className="rounded p-1.5"
-      style={
-        highlight
-          ? { background: 'rgba(94, 203, 214, 0.15)' }
-          : { background: '#f9fafb' }
-      }
-    >
+    <div className="rounded p-1.5" style={{ background: bg }}>
       <div className="text-[9px] text-gray-700 font-bold">{label}</div>
-      <div
-        className="text-sm font-black"
-        style={highlight ? { color: '#0891a3' } : { color: '#1a2332' }}
-      >
+      <div className="text-sm font-black" style={{ color }}>
         {value}
       </div>
       {unit && <div className="text-[9px] text-gray-500">{unit}</div>}

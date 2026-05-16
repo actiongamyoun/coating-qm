@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import type { WizardState, MeasurementInput } from './Wizard'
+import { calcMinMeasurementPoints } from '@/lib/utils/measurement'
 
 type Props = {
   state: WizardState
@@ -12,6 +13,7 @@ type Props = {
 
 export default function Step5Measure({ state, updateState, onNext, onBack }: Props) {
   const isFirst = state.coat_order === 1
+  const isFinal = state.coat_order === 99
 
   useEffect(() => {
     const targetZones = isFirst
@@ -25,6 +27,7 @@ export default function Step5Measure({ state, updateState, onNext, onBack }: Pro
         zone_name: z.name,
         is_pspc: z.is_pspc,
         dft_target: z.dft_target,
+        area_total: z.area_total ?? null,
         dft_avg: '',
         dft_min: '',
         dft_max: '',
@@ -64,7 +67,9 @@ export default function Step5Measure({ state, updateState, onNext, onBack }: Pro
           <strong>{state.coat_label}</strong> ·{' '}
           {isFirst
             ? '전처리 검사 (Salt / Dust / Profile, PSPC 구역만)'
-            : '도장 검사 (DFT 측정)'}
+            : isFinal
+              ? 'FINAL DFT 측정 (CTF 기록용, 최소 포인트 자동 계산)'
+              : '도장 검사 (DFT 측정)'}
         </div>
       </div>
 
@@ -77,7 +82,11 @@ export default function Step5Measure({ state, updateState, onNext, onBack }: Pro
       ) : isFirst ? (
         <SurfaceCards measurements={state.measurements} updateField={updateField} />
       ) : (
-        <DftCards measurements={state.measurements} updateField={updateField} />
+        <DftCards
+          measurements={state.measurements}
+          updateField={updateField}
+          showMinPoints={isFinal}
+        />
       )}
 
       <div className="flex gap-2 pt-3 border-t border-gray-200">
@@ -182,38 +191,98 @@ function SurfaceCards({
 }
 
 function DftCards({
-  measurements, updateField,
+  measurements, updateField, showMinPoints,
 }: {
   measurements: MeasurementInput[]
   updateField: (zone_id: string, field: keyof MeasurementInput, value: string) => void
+  showMinPoints: boolean
 }) {
   return (
-    <MeasureCard title="DFT" subtitle="㎛ · 평균/최소/최대/측정횟수" icon="straighten" bt="Elcometer 456">
-      {measurements.map(m => (
-        <div key={m.zone_id} className="py-3 border-b border-gray-200 last:border-0">
-          <div className="flex justify-between items-center mb-2">
-            <div className="font-black text-sm flex items-center gap-1 text-[#1a2332]">
-              {m.is_pspc && <span className="material-icons text-base text-pink-700">lock</span>}
-              {m.zone_name}
-              {m.is_pspc && <span className="bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded text-[9px] font-black ml-1">PSPC</span>}
+    <MeasureCard
+      title={showMinPoints ? 'FINAL DFT' : 'DFT'}
+      subtitle={
+        showMinPoints
+          ? '㎛ · 평균/최소/최대/측정횟수 · CTF 기록용'
+          : '㎛ · 평균/최소/최대/측정횟수'
+      }
+      icon={showMinPoints ? 'flag' : 'straighten'}
+      bt="Elcometer 456"
+    >
+      {measurements.map(m => {
+        const minPoints = showMinPoints ? calcMinMeasurementPoints(m.area_total) : null
+        const countNum = m.dft_count ? Number(m.dft_count) : null
+        const insufficient =
+          showMinPoints &&
+          minPoints !== null &&
+          countNum !== null &&
+          countNum < minPoints
+
+        return (
+          <div key={m.zone_id} className="py-3 border-b border-gray-200 last:border-0">
+            <div className="flex justify-between items-center mb-2">
+              <div className="font-black text-sm flex items-center gap-1 text-[#1a2332]">
+                {m.is_pspc && <span className="material-icons text-base text-pink-700">lock</span>}
+                {m.zone_name}
+                {m.is_pspc && <span className="bg-pink-100 text-pink-700 px-1.5 py-0.5 rounded text-[9px] font-black ml-1">PSPC</span>}
+              </div>
+              <div className="flex items-center gap-1 flex-wrap justify-end">
+                {m.dft_target !== null && (
+                  <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded">
+                    목표 {m.dft_target}㎛
+                  </span>
+                )}
+                {showMinPoints && minPoints !== null && (
+                  <span
+                    className="text-xs font-black px-2 py-1 rounded flex items-center gap-0.5"
+                    style={{
+                      background: 'rgba(94, 203, 214, 0.15)',
+                      color: '#0891a3',
+                    }}
+                    title={`면적 ${m.area_total}㎡ × 1 point/㎡`}
+                  >
+                    <span className="material-icons text-[12px]">grid_on</span>
+                    최소 {minPoints}회
+                  </span>
+                )}
+                {showMinPoints && minPoints === null && (
+                  <span className="text-[10px] font-bold text-warning bg-warning-light px-2 py-1 rounded">
+                    면적 정보 없음
+                  </span>
+                )}
+              </div>
             </div>
-            {m.dft_target !== null && (
-              <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded">목표 {m.dft_target}㎛</span>
+            <div className="grid grid-cols-4 gap-1.5">
+              <DftInput label="평균" value={m.dft_avg} onChange={v => updateField(m.zone_id, 'dft_avg', v)} />
+              <DftInput label="최소" value={m.dft_min} onChange={v => updateField(m.zone_id, 'dft_min', v)} />
+              <DftInput label="최대" value={m.dft_max} onChange={v => updateField(m.zone_id, 'dft_max', v)} />
+              <DftInput
+                label="횟수"
+                value={m.dft_count}
+                onChange={v => updateField(m.zone_id, 'dft_count', v)}
+                warning={insufficient}
+              />
+            </div>
+            {insufficient && (
+              <div className="mt-2 text-[11px] text-danger font-black flex items-center gap-1">
+                <span className="material-icons text-[14px]">warning</span>
+                측정 횟수가 최소 포인트({minPoints}회) 미만입니다
+              </div>
             )}
           </div>
-          <div className="grid grid-cols-4 gap-1.5">
-            <DftInput label="평균" value={m.dft_avg} onChange={v => updateField(m.zone_id, 'dft_avg', v)} />
-            <DftInput label="최소" value={m.dft_min} onChange={v => updateField(m.zone_id, 'dft_min', v)} />
-            <DftInput label="최대" value={m.dft_max} onChange={v => updateField(m.zone_id, 'dft_max', v)} />
-            <DftInput label="횟수" value={m.dft_count} onChange={v => updateField(m.zone_id, 'dft_count', v)} />
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </MeasureCard>
   )
 }
 
-function DftInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function DftInput({
+  label, value, onChange, warning,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  warning?: boolean
+}) {
   return (
     <div className="text-center">
       <label className="text-[10px] text-gray-700 font-bold block mb-1">{label}</label>
@@ -223,7 +292,11 @@ function DftInput({ label, value, onChange }: { label: string; value: string; on
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder="—"
-        className="w-full p-2 text-base font-black text-center border-[1.5px] border-gray-300 rounded-lg focus:border-[#5ecbd6] focus:outline-none"
+        className="w-full p-2 text-base font-black text-center border-[1.5px] rounded-lg focus:outline-none"
+        style={{
+          borderColor: warning ? '#dc2626' : '#d1d5db',
+          background: warning ? '#fef2f2' : '#ffffff',
+        }}
       />
     </div>
   )
