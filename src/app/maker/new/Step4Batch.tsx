@@ -92,20 +92,6 @@ export default function Step4Batch({ state, updateState, onNext, onBack }: Props
 
   return (
     <div className="space-y-4">
-      <div
-        className="p-3 rounded-lg text-xs font-bold flex items-start gap-2"
-        style={{
-          background: 'rgba(94, 203, 214, 0.1)',
-          color: '#0891a3',
-          border: '1px solid rgba(94, 203, 214, 0.25)',
-        }}
-      >
-        <span className="material-icons text-base">format_paint</span>
-        <div>
-          <strong>도료사 전담.</strong> 같은 도료가 여러 구역에 쓰이면 Batch 1번만 입력하면 됩니다.
-        </div>
-      </div>
-
       {state.batches.length === 0 && (
         <div className="bg-gray-100 p-4 rounded-lg text-sm text-gray-600 text-center font-bold">
           구역을 선택하면 도료가 표시됩니다
