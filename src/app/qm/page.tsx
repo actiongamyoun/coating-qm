@@ -6,7 +6,7 @@ import QmDashboard from './QmDashboard'
 
 export default function QmHome() {
   const router = useRouter()
-  const [user, setUser] = useState<{name: string} | null>(null)
+  const [user, setUser] = useState<{ name: string } | null>(null)
 
   useEffect(() => {
     const id = localStorage.getItem('coating_qm_user_id')
@@ -20,12 +20,6 @@ export default function QmHome() {
     })
   }, [router])
 
-  function handleLogout() {
-    if (!confirm('등록을 초기화하시겠습니까?')) return
-    localStorage.clear()
-    router.replace('/signup')
-  }
-
   if (!user) return null
-  return <QmDashboard userName={user.name} onLogout={handleLogout} />
+  return <QmDashboard userName={user.name} />
 }
